@@ -13,8 +13,8 @@ module mcu_ui_apb_regs #(
     // Keep the APB side inside the normal hobby-servo range.  The PWM block
     // applies the same limits, so an early/invalid MCU write cannot create an
     // extreme pulse.
-    parameter [15:0] SERVO_MIN = 16'd1000,
-    parameter [15:0] SERVO_MAX = 16'd2000,
+    parameter [15:0] SERVO_MIN = 16'd500,
+    parameter [15:0] SERVO_MAX = 16'd2500,
     parameter [15:0] SERVO_INIT = 16'd1500
 )(
     input  wire        I_clk,
@@ -67,7 +67,7 @@ module mcu_ui_apb_regs #(
     assign O_pslverr = 1'b0;
 
     // Servo registers (microseconds): 0x50 = V6/pan, 0x54 = V4/tilt.
-    // Values are clamped to the safe initial test range 1000..2000 us.
+    // Values are clamped to the expanded 500..2500 us touch-control range.
 
     // key_remove_shakes emits one clock pulse for each active-low press.
     wire [3:0] key_pulse;

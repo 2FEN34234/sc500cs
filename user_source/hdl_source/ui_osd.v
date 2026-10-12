@@ -18,6 +18,12 @@ module ui_osd #(
     input  wire [15:0] I_gain,
     input  wire [15:0] I_servo_pan_us,
     input  wire [15:0] I_servo_tilt_us,
+    input  wire [7:0]  I_rtc_hours,
+    input  wire [7:0]  I_rtc_minutes,
+    input  wire [7:0]  I_rtc_seconds,
+    input  wire        I_rtc_valid,
+    input  wire        I_rtc_error,
+    input  wire        I_rtc_osf,
     output reg         O_vsync,
     output reg         O_hsync,
     output reg         O_de,
@@ -45,6 +51,8 @@ module ui_osd #(
     reg [7:0] tilt_bar_width;
     localparam [11:0] MENU_X0 = 12'd24;
     localparam [11:0] MENU_Y0 = 12'd680;
+    localparam integer CLOCK_X0 = H_ACTIVE - 288;
+    localparam integer CLOCK_Y0 = 16;
 
     function [7:0] text_char;
         input [2:0] line;
@@ -225,6 +233,103 @@ module ui_osd #(
                     3'd5: glyph_bits = 5'b10001;
                     3'd6: glyph_bits = 5'b10001;
                 endcase
+                "0": case(r)
+                    3'd0: glyph_bits = 5'b01110;
+                    3'd1: glyph_bits = 5'b10001;
+                    3'd2: glyph_bits = 5'b10011;
+                    3'd3: glyph_bits = 5'b10101;
+                    3'd4: glyph_bits = 5'b11001;
+                    3'd5: glyph_bits = 5'b10001;
+                    3'd6: glyph_bits = 5'b01110;
+                endcase
+                "1": case(r)
+                    3'd0: glyph_bits = 5'b00100;
+                    3'd1: glyph_bits = 5'b01100;
+                    3'd2: glyph_bits = 5'b00100;
+                    3'd3: glyph_bits = 5'b00100;
+                    3'd4: glyph_bits = 5'b00100;
+                    3'd5: glyph_bits = 5'b00100;
+                    3'd6: glyph_bits = 5'b01110;
+                endcase
+                "2": case(r)
+                    3'd0: glyph_bits = 5'b01110;
+                    3'd1: glyph_bits = 5'b10001;
+                    3'd2: glyph_bits = 5'b00001;
+                    3'd3: glyph_bits = 5'b00010;
+                    3'd4: glyph_bits = 5'b00100;
+                    3'd5: glyph_bits = 5'b01000;
+                    3'd6: glyph_bits = 5'b11111;
+                endcase
+                "3": case(r)
+                    3'd0: glyph_bits = 5'b11110;
+                    3'd1: glyph_bits = 5'b00001;
+                    3'd2: glyph_bits = 5'b00001;
+                    3'd3: glyph_bits = 5'b01110;
+                    3'd4: glyph_bits = 5'b00001;
+                    3'd5: glyph_bits = 5'b00001;
+                    3'd6: glyph_bits = 5'b11110;
+                endcase
+                "4": case(r)
+                    3'd0: glyph_bits = 5'b00010;
+                    3'd1: glyph_bits = 5'b00110;
+                    3'd2: glyph_bits = 5'b01010;
+                    3'd3: glyph_bits = 5'b10010;
+                    3'd4: glyph_bits = 5'b11111;
+                    3'd5: glyph_bits = 5'b00010;
+                    3'd6: glyph_bits = 5'b00010;
+                endcase
+                "5": case(r)
+                    3'd0: glyph_bits = 5'b11111;
+                    3'd1: glyph_bits = 5'b10000;
+                    3'd2: glyph_bits = 5'b10000;
+                    3'd3: glyph_bits = 5'b11110;
+                    3'd4: glyph_bits = 5'b00001;
+                    3'd5: glyph_bits = 5'b00001;
+                    3'd6: glyph_bits = 5'b11110;
+                endcase
+                "6": case(r)
+                    3'd0: glyph_bits = 5'b01110;
+                    3'd1: glyph_bits = 5'b10000;
+                    3'd2: glyph_bits = 5'b10000;
+                    3'd3: glyph_bits = 5'b11110;
+                    3'd4: glyph_bits = 5'b10001;
+                    3'd5: glyph_bits = 5'b10001;
+                    3'd6: glyph_bits = 5'b01110;
+                endcase
+                "7": case(r)
+                    3'd0: glyph_bits = 5'b11111;
+                    3'd1: glyph_bits = 5'b00001;
+                    3'd2: glyph_bits = 5'b00010;
+                    3'd3: glyph_bits = 5'b00100;
+                    3'd4: glyph_bits = 5'b01000;
+                    3'd5: glyph_bits = 5'b01000;
+                    3'd6: glyph_bits = 5'b01000;
+                endcase
+                "8": case(r)
+                    3'd0: glyph_bits = 5'b01110;
+                    3'd1: glyph_bits = 5'b10001;
+                    3'd2: glyph_bits = 5'b10001;
+                    3'd3: glyph_bits = 5'b01110;
+                    3'd4: glyph_bits = 5'b10001;
+                    3'd5: glyph_bits = 5'b10001;
+                    3'd6: glyph_bits = 5'b01110;
+                endcase
+                "9": case(r)
+                    3'd0: glyph_bits = 5'b01110;
+                    3'd1: glyph_bits = 5'b10001;
+                    3'd2: glyph_bits = 5'b10001;
+                    3'd3: glyph_bits = 5'b01111;
+                    3'd4: glyph_bits = 5'b00001;
+                    3'd5: glyph_bits = 5'b00001;
+                    3'd6: glyph_bits = 5'b01110;
+                endcase
+                ":": case(r)
+                    3'd2: glyph_bits = 5'b00100;
+                    3'd4: glyph_bits = 5'b00100;
+                endcase
+                "-": case(r)
+                    3'd3: glyph_bits = 5'b11111;
+                endcase
                 default: glyph_bits = 5'b00000;
             endcase
         end
@@ -298,8 +403,8 @@ module ui_osd #(
                            ((glyph & (5'b10000 >> col)) != 0);
             end
             if(glyph_on) pixel = 24'hffffff;
-            // Four short value bars fit beside the labels. The servo bars
-            // cover the conservative 1000..2000 us range used by the menu.
+            // Four short value bars fit beside the labels.  The PAN/TILT bars
+            // are status indicators for the full-screen touch controller.
             if((x >= MENU_X0 + 12'd306) && (x < MENU_X0 + 12'd434)) begin
                 if((y >= MENU_Y0 + 12'd60) && (y < MENU_Y0 + 12'd72))
                     pixel = (x < MENU_X0 + 12'd306 + exposure_bar_width) ? 24'h40d080 : 24'h304050;
@@ -333,6 +438,40 @@ module ui_osd #(
                     pixel = 24'hffffff;
             end
         end
+
+        // Always-visible RTC clock in the upper-right corner.  The panel is
+        // deliberately independent of the menu so the time remains present
+        // while the lower-left controls are hidden.
+        if((x >= CLOCK_X0) && (x < CLOCK_X0 + 284) &&
+           (y >= CLOCK_Y0) && (y < CLOCK_Y0 + 44)) begin
+            pixel = 24'h101820;
+            if((x < CLOCK_X0 + 4) || (x >= CLOCK_X0 + 280) ||
+               (y < CLOCK_Y0 + 4) || (y >= CLOCK_Y0 + 40))
+                pixel = (I_rtc_valid && !I_rtc_error && !I_rtc_osf) ?
+                        24'h309060 : 24'h904030;
+            if((x >= CLOCK_X0 + 8) && (x < CLOCK_X0 + 264) &&
+               (y >= CLOCK_Y0 + 8) && (y < CLOCK_Y0 + 36)) begin
+                text_x = x - (CLOCK_X0 + 8);
+                char_no = {1'b0, text_x[7:5]};
+                col = text_x[4:2];
+                row = (y - (CLOCK_Y0 + 8)) >> 2;
+                case(char_no)
+                    4'd0: ch = I_rtc_valid ? ("0" + I_rtc_hours[7:4]) : "-";
+                    4'd1: ch = I_rtc_valid ? ("0" + I_rtc_hours[3:0]) : "-";
+                    4'd2: ch = ":";
+                    4'd3: ch = I_rtc_valid ? ("0" + I_rtc_minutes[7:4]) : "-";
+                    4'd4: ch = I_rtc_valid ? ("0" + I_rtc_minutes[3:0]) : "-";
+                    4'd5: ch = ":";
+                    4'd6: ch = I_rtc_valid ? ("0" + I_rtc_seconds[7:4]) : "-";
+                    4'd7: ch = I_rtc_valid ? ("0" + I_rtc_seconds[3:0]) : "-";
+                    default: ch = "-";
+                endcase
+                glyph = glyph_bits(ch, row);
+                if((col < 3'd5) && ((glyph & (5'b10000 >> col)) != 0))
+                    pixel = (I_rtc_valid && !I_rtc_error && !I_rtc_osf) ?
+                            24'hffffff : 24'hffb080;
+            end
+        end
     end
 
     always @(posedge I_clk or negedge I_rst_n) begin
@@ -362,12 +501,12 @@ module ui_osd #(
                     gain_bar_width <= 8'd127;
                 else
                     gain_bar_width <= I_gain - 16'd16;
-                pan_bar_width <= (I_servo_pan_us <= 16'd1000) ? 8'd0 :
-                                 (I_servo_pan_us >= 16'd2000) ? 8'd125 :
-                                 (I_servo_pan_us - 16'd1000) >> 3;
-                tilt_bar_width <= (I_servo_tilt_us <= 16'd1000) ? 8'd0 :
-                                  (I_servo_tilt_us >= 16'd2000) ? 8'd125 :
-                                  (I_servo_tilt_us - 16'd1000) >> 3;
+                pan_bar_width <= (I_servo_pan_us <= 16'd500) ? 8'd0 :
+                                 (I_servo_pan_us >= 16'd2500) ? 8'd125 :
+                                 (I_servo_pan_us - 16'd500) >> 4;
+                tilt_bar_width <= (I_servo_tilt_us <= 16'd500) ? 8'd0 :
+                                  (I_servo_tilt_us >= 16'd2500) ? 8'd125 :
+                                  (I_servo_tilt_us - 16'd500) >> 4;
             end else if(I_de) begin
                 x <= x + 1'b1;
             end else if(de_d) begin

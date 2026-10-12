@@ -12,6 +12,7 @@ module tb_ui_osd;
     wire [23:0] out_data;
     integer px, py, mode, fd, line_index, char_index;
     integer start_y, last_x;
+    integer clock_hits;
     integer hits [0:39];
     reg [23:0] sample;
     reg [23:0] block_row [0:511];
@@ -20,8 +21,10 @@ module tb_ui_osd;
         .I_clk(clk), .I_rst_n(rst_n), .I_vsync(vsync),
         .I_hsync(hsync), .I_de(de), .I_data(data),
         .I_menu_enable(menu_enable), .I_edit_enable(1'b0),
-        .I_info_enable(1'b1), .I_menu_index(2'd3),
+        .I_info_enable(1'b1), .I_menu_index(3'd3),
         .I_exposure(16'd2240), .I_gain(16'd80),
+        .I_rtc_hours(8'h12), .I_rtc_minutes(8'h34), .I_rtc_seconds(8'h56),
+        .I_rtc_valid(1'b1), .I_rtc_error(1'b0), .I_rtc_osf(1'b0),
         .O_vsync(out_vsync), .O_hsync(out_hsync),
         .O_de(out_de), .O_data(out_data)
     );
@@ -42,6 +45,7 @@ module tb_ui_osd;
         if (!fd) $fatal(1, "Cannot open preview output");
         $fwrite(fd, "P3\n512 320\n255\n");
         for (px = 0; px < 40; px = px + 1) hits[px] = 0;
+        clock_hits = 0;
         repeat (2) @(negedge clk);
         rst_n = 1;
         for (mode = 0; mode < 2; mode = mode + 1) begin
@@ -52,20 +56,25 @@ module tb_ui_osd;
                 de = 1;
                 for (px = 0; px < 1920; px = px + 1) begin
                     tick;
-                    if (!menu_enable || px < 24 || px >= 492 || py < 24 || py >= 300)
+                    if (!((menu_enable && px >= 24 && px < 492 && py >= 680 && py < 1004) ||
+                          (px >= 24 && px < 220 && py >= 1016 && py < 1076) ||
+                          (px >= 1632 && px < 1916 && py >= 16 && py < 60)))
                         if (out_data !== data)
-                            $fatal(1, "Video passthrough mismatch at %0d,%0d", px, py);
+                            $fatal(1, "Video passthrough mismatch at %0d,%0d data=%06x expected=%06x menu=%b", px, py, out_data, data, menu_enable);
+                    if (px >= 1640 && px < 1896 && py >= 24 && py < 52 &&
+                        out_data === 24'hffffff)
+                        clock_hits = clock_hits + 1;
                     if (mode == 0) begin
                         if (px < 512 && py < 320)
                             $fwrite(fd, "%0d %0d %0d\n", out_data[23:16], out_data[15:8], out_data[7:0]);
                         line_index = -1;
-                        if (py >= 40 && py < 68) line_index = 0;
-                        if (py >= 76 && py < 104) line_index = 1;
-                        if (py >= 112 && py < 140) line_index = 2;
-                        if (py >= 148 && py < 176) line_index = 3;
-                        if (py >= 184 && py < 212) line_index = 4;
+                        if (py >= 696 && py < 724) line_index = 0;
+                        if (py >= 732 && py < 760) line_index = 1;
+                        if (py >= 768 && py < 796) line_index = 2;
+                        if (py >= 804 && py < 832) line_index = 3;
+                        if (py >= 840 && py < 868) line_index = 4;
                         last_x = (line_index == 1) ? 288 : 160;
-                        if (out_data === 24'hffffff) begin
+                        if (out_data === 24'hffffff && px < 512 && py >= 680 && py < 868) begin
                             if (line_index < 0 || px < 44 || px >= last_x)
                                 $fatal(1, "Repeated or out-of-bounds text at %0d,%0d", px, py);
                             char_index = (px - 44) / 32;
@@ -73,7 +82,7 @@ module tb_ui_osd;
                         end
                         // Each font dot must form a solid square, without missing rows.
                         if (line_index >= 0 && px >= 44 && px < 300) begin
-                            start_y = 40 + line_index * 36;
+                            start_y = 696 + line_index * 36;
                             if ((px - 44) % 4 == 0) sample = out_data;
                             else if (out_data !== sample)
                                 $fatal(1, "Uneven horizontal font scaling");
@@ -89,12 +98,15 @@ module tb_ui_osd;
         end
         for (line_index = 0; line_index < 5; line_index = line_index + 1)
             for (char_index = 0; char_index < 8; char_index = char_index + 1) begin
-                if (line_index == 1 || char_index < 4) begin
+                if (line_index == 1 || (line_index == 3 && char_index < 3) ||
+                    (line_index != 3 && char_index < 4)) begin
                     if (hits[line_index * 8 + char_index] == 0)
-                        $fatal(1, "Missing menu character");
+                        $fatal(1, "Missing menu character line=%0d char=%0d hits=%0d", line_index, char_index, hits[line_index * 8 + char_index]);
                 end else if (hits[line_index * 8 + char_index] != 0)
                     $fatal(1, "Unexpected extra menu character");
             end
+        if (clock_hits == 0)
+            $fatal(1, "RTC clock text was not rendered in the upper-right panel");
         $fclose(fd);
         $display("PASS: five labels, no repeated text, square font dots, video passthrough and control alignment");
         $finish;

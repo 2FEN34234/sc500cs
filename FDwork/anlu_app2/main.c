@@ -49,9 +49,6 @@
 #define UI_RTC_TIME1     0x64
 #define UI_RTC_STATUS    0x68
 #define CAMERA_BUILD_ID  0x20261011u
-#define SERVO_MENU_MIN_US  1000u
-#define SERVO_MENU_MAX_US  2000u
-#define SERVO_MENU_STEP_US 25u
 #define GAIN_MENU_STEP     8u
 
 /* Run real USB-SPI and VCM-I2C transactions often enough for a logic
@@ -356,11 +353,11 @@ static void menu_commit(MenuState *s, const MenuState *old, unsigned actions)
         ui_write(UI_GAIN, s->gain);
         s->gain = ui_read(UI_GAIN);
     }
-    if(s->servo_menu_available && s->servo_pan_us != old->servo_pan_us) {
+    if(s->servo_pan_us != old->servo_pan_us) {
         ui_write(UI_SERVO_PAN_US, s->servo_pan_us);
         s->servo_pan_us = ui_read(UI_SERVO_PAN_US);
     }
-    if(s->servo_menu_available && s->servo_tilt_us != old->servo_tilt_us) {
+    if(s->servo_tilt_us != old->servo_tilt_us) {
         ui_write(UI_SERVO_TILT_US, s->servo_tilt_us);
         s->servo_tilt_us = ui_read(UI_SERVO_TILT_US);
     }
@@ -382,7 +379,8 @@ static void touchscreen_handle(MenuState *s)
     TouchEvent event;
     if(max3421e_touch_pop(&event)) {
         MenuState old = *s;
-        unsigned actions = menu_touch(s, &event);
+        unsigned actions = touch_servo_apply(s, &event);
+        actions |= menu_touch(s, &event);
         menu_commit(s, &old, actions);
     }
 }
@@ -451,7 +449,7 @@ AL_S32 main(void)
                             ui.servo_tilt_us >= 500u && ui.servo_tilt_us <= 2500u);
     image_ctrl_write(ui.image_step, ui.image_effect, ui.image_target, ui.logo_enable, 0);
     al_printf("SERVO: %s PAN/V6=%u us TILT/V4=%u us\r\n",
-              ui.servo_menu_available ? "menu ready" : "new FPGA bit required",
+              ui.servo_menu_available ? "touch ready" : "new FPGA bit required",
               ui.servo_pan_us, ui.servo_tilt_us);
     /* APB 检查通过后自动显示菜单，便于直接确认 CPU 到 OSD 的链路。 */
     ui_write(UI_INDEX, ui.index);
@@ -486,7 +484,6 @@ AL_S32 main(void)
             focus_plot(ui_read(UI_LENS_POS) & 0x3fffu,
                        ui_read(UI_FOCUS_METRIC), ui_read(UI_LENS_STAT));
             max3421e_diag_report();
-            touchscreen_handle(&ui);
             /* Keep the latest raw-BCD RTC snapshot in RAM; serial output stays
              * reserved for touch reports in this build. */
             {
@@ -516,6 +513,8 @@ AL_S32 main(void)
                 }
             }
         }
+        max3421e_touch_poll();
+        touchscreen_handle(&ui);
         g_ui_debug_stage = 6;
         AlSys_MDelay(1);
     }

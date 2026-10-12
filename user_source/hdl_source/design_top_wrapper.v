@@ -359,6 +359,12 @@ module design_top_wrapper (
     reg [15:0]  S_ui_ag_p1, S_ui_ag_p2;
     reg [15:0]  S_ui_servo_pan_p1, S_ui_servo_pan_p2;
     reg [15:0]  S_ui_servo_tilt_p1, S_ui_servo_tilt_p2;
+    reg [7:0]   S_rtc_hours_p1, S_rtc_hours_p2;
+    reg [7:0]   S_rtc_minutes_p1, S_rtc_minutes_p2;
+    reg [7:0]   S_rtc_seconds_p1, S_rtc_seconds_p2;
+    reg         S_rtc_valid_p1, S_rtc_valid_p2;
+    reg         S_rtc_error_p1, S_rtc_error_p2;
+    reg         S_rtc_osf_p1, S_rtc_osf_p2;
     reg [2:0]   S_image_step_p1, S_image_step_p2;
     reg [2:0]   S_image_effect_p1, S_image_effect_p2;
     reg [1:0]   S_image_target_p1, S_image_target_p2;
@@ -759,6 +765,18 @@ module design_top_wrapper (
             S_ui_servo_pan_p2  <= 16'd1500;
             S_ui_servo_tilt_p1 <= 16'd1500;
             S_ui_servo_tilt_p2 <= 16'd1500;
+            S_rtc_hours_p1   <= 8'd0;
+            S_rtc_hours_p2   <= 8'd0;
+            S_rtc_minutes_p1 <= 8'd0;
+            S_rtc_minutes_p2 <= 8'd0;
+            S_rtc_seconds_p1 <= 8'd0;
+            S_rtc_seconds_p2 <= 8'd0;
+            S_rtc_valid_p1   <= 1'b0;
+            S_rtc_valid_p2   <= 1'b0;
+            S_rtc_error_p1   <= 1'b0;
+            S_rtc_error_p2   <= 1'b0;
+            S_rtc_osf_p1     <= 1'b1;
+            S_rtc_osf_p2     <= 1'b1;
             S_image_step_p1    <= 3'd1;
             S_image_step_p2    <= 3'd1;
             S_image_effect_p1  <= 3'd0;
@@ -788,6 +806,18 @@ module design_top_wrapper (
             S_ui_servo_pan_p2  <= S_ui_servo_pan_p1;
             S_ui_servo_tilt_p1 <= S_servo_tilt_us;
             S_ui_servo_tilt_p2 <= S_ui_servo_tilt_p1;
+            S_rtc_hours_p1   <= S_rtc_hours;
+            S_rtc_hours_p2   <= S_rtc_hours_p1;
+            S_rtc_minutes_p1 <= S_rtc_minutes;
+            S_rtc_minutes_p2 <= S_rtc_minutes_p1;
+            S_rtc_seconds_p1 <= S_rtc_seconds;
+            S_rtc_seconds_p2 <= S_rtc_seconds_p1;
+            S_rtc_valid_p1   <= S_rtc_valid;
+            S_rtc_valid_p2   <= S_rtc_valid_p1;
+            S_rtc_error_p1   <= S_rtc_error;
+            S_rtc_error_p2   <= S_rtc_error_p1;
+            S_rtc_osf_p1     <= S_rtc_osf;
+            S_rtc_osf_p2     <= S_rtc_osf_p1;
             S_image_step_p1    <= S_image_step_apb;
             S_image_step_p2    <= S_image_step_p1;
             S_image_effect_p1  <= S_image_effect_apb;
@@ -1526,6 +1556,12 @@ isp_top u_isp_top (
         .I_gain         ( S_ui_ag_p2 ),
         .I_servo_pan_us ( S_ui_servo_pan_p2 ),
         .I_servo_tilt_us( S_ui_servo_tilt_p2 ),
+        .I_rtc_hours    ( S_rtc_hours_p2 ),
+        .I_rtc_minutes  ( S_rtc_minutes_p2 ),
+        .I_rtc_seconds  ( S_rtc_seconds_p2 ),
+        .I_rtc_valid    ( S_rtc_valid_p2 ),
+        .I_rtc_error    ( S_rtc_error_p2 ),
+        .I_rtc_osf      ( S_rtc_osf_p2 ),
         .O_vsync        ( S_osd_vsync ),
         .O_hsync        ( S_osd_hsync ),
         .O_de           ( S_osd_de ),

@@ -562,6 +562,13 @@ int max3421e_touch_pop(TouchEvent *event)
     return 1;
 }
 
+void max3421e_touch_poll(void)
+{
+    if (!extension_present || diag_result || !host_descriptor_done || touch_pending)
+        return;
+    hid_poll_reports();
+}
+
 static void host_descriptor_probe(void)
 {
     uint8_t dev8[8], dev[18], cfg[256];

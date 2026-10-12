@@ -5,6 +5,10 @@
 /* MCU input/state layer. Geometry matches the 1920x1080 ui_osd.v layout.
  * Both firmware targets include this file; no extra FPGA logic is required. */
 enum { TOUCH_DOWN = 1, TOUCH_MOVE, TOUCH_UP, TOUCH_CANCEL };
+/* Direct touch control uses the full panel and a finer command grid than the
+ * old menu buttons.  The APB/PWM side uses the same limits. */
+enum { SERVO_TOUCH_MIN_US = 500, SERVO_TOUCH_MAX_US = 2500,
+       SERVO_TOUCH_STEP_US = 5 };
 typedef struct { uint16_t x, y; uint8_t type; } TouchEvent;
 typedef struct { uint8_t down; } TouchDecoder;
 
@@ -58,12 +62,9 @@ static inline unsigned menu_adjust(MenuState *s, int direction)
     switch(s->index) {
     case 0: s->exposure = menu_step(s->exposure, direction, 3, 5990, 120); break;
     case 1: s->gain = menu_step(s->gain, direction, 16, 143, 8); break;
-    case 2: if(s->servo_menu_available)
-                s->servo_pan_us = menu_step(s->servo_pan_us, direction, 1000, 2000, 25);
-            break;
-    case 3: if(s->servo_menu_available)
-                s->servo_tilt_us = menu_step(s->servo_tilt_us, direction, 1000, 2000, 25);
-            break;
+    /* Servo position is controlled by the live touch surface, not by menu
+     * selection.  Keep these rows inert for physical/menu input. */
+    case 2: case 3: break;
     case 4: s->image_step = direction > 0 ? (s->image_step >= 5 ? 1 : s->image_step + 1)
                                         : (s->image_step <= 1 ? 5 : s->image_step - 1); break;
     case 5: if(s->image_step == 5) return MENU_REACQUIRE;
@@ -106,12 +107,32 @@ static inline void menu_slider(MenuState *s, unsigned row, unsigned x)
     unsigned p = x <= 330 ? 0 : x >= 457 ? 127 : x - 330;
     if(row == 0) s->exposure = 3 + (p * (5990 - 3) + 63) / 127;
     if(row == 1) s->gain = 16 + p;
-    /* Keep the same safe range and 25 us steps as the physical buttons. */
-    if(s->servo_menu_available) {
-        unsigned value = 1000 + ((p * 40 + 63) / 127) * 25;
-        if(row == 2) s->servo_pan_us = value;
-        if(row == 3) s->servo_tilt_us = value;
-    }
+}
+
+/* Map a touch position directly to both servo axes.  The full 1920x1080
+ * image is active: left/right controls PAN and top/bottom controls TILT.
+ * Quantizing to 5 us removes jitter while remaining much finer than the old
+ * 25 us menu increment. */
+static inline unsigned touch_servo_apply(MenuState *s, const TouchEvent *e)
+{
+    unsigned x, y, pan, tilt;
+    if(e->type != TOUCH_DOWN && e->type != TOUCH_MOVE && e->type != TOUCH_UP)
+        return 0;
+    x = e->x > 1919u ? 1919u : e->x;
+    y = e->y > 1079u ? 1079u : e->y;
+    pan = SERVO_TOUCH_MIN_US +
+          (x * (SERVO_TOUCH_MAX_US - SERVO_TOUCH_MIN_US) + 959u) / 1919u;
+    tilt = SERVO_TOUCH_MAX_US -
+           (y * (SERVO_TOUCH_MAX_US - SERVO_TOUCH_MIN_US) + 539u) / 1079u;
+    pan = (pan / SERVO_TOUCH_STEP_US) * SERVO_TOUCH_STEP_US;
+    tilt = (tilt / SERVO_TOUCH_STEP_US) * SERVO_TOUCH_STEP_US;
+    if(pan < SERVO_TOUCH_MIN_US) pan = SERVO_TOUCH_MIN_US;
+    if(pan > SERVO_TOUCH_MAX_US) pan = SERVO_TOUCH_MAX_US;
+    if(tilt < SERVO_TOUCH_MIN_US) tilt = SERVO_TOUCH_MIN_US;
+    if(tilt > SERVO_TOUCH_MAX_US) tilt = SERVO_TOUCH_MAX_US;
+    s->servo_pan_us = pan;
+    s->servo_tilt_us = tilt;
+    return 0;
 }
 
 static inline unsigned menu_touch(MenuState *s, const TouchEvent *e)
@@ -122,7 +143,7 @@ static inline unsigned menu_touch(MenuState *s, const TouchEvent *e)
         return 0;
     }
     if(e->type == TOUCH_MOVE) {
-        if(s->menu && s->touch_capture >= 0 && s->touch_capture < 4) {
+        if(s->menu && s->touch_capture >= 0 && s->touch_capture < 2) {
             row = (unsigned)s->touch_capture;
             /* Ignore excursions into other rows; never transfer a drag. */
             if(y >= 728 + row * 36 && y < 764 + row * 36)
@@ -143,7 +164,7 @@ static inline unsigned menu_touch(MenuState *s, const TouchEvent *e)
         if(y < 728 || y >= 980) return 0;
         row = (y - 728) / 36;
         s->index = row; s->edit = 1; s->info = 0;
-        if(row < 4 && x >= 306) {
+        if(row < 2 && x >= 306) {
             s->touch_capture = (int)row;
             menu_slider(s, row, x);
         } else if(row >= 4) return menu_adjust(s, 1);

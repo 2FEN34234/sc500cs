@@ -1,6 +1,6 @@
 // Two-channel hobby-servo pulse generator.
 // Clock domain: 50 MHz APB clock (20 ns/count).
-// Frame: 20 ms = 1,000,000 counts; pulse width: 1000..2000 us.
+// Frame: 20 ms = 1,000,000 counts; pulse width: 500..2500 us.
 // The outputs remain low for 100 ms after reset release.  This is deliberate:
 // FPGA pins are high impedance while the device is being configured and the
 // MCU/APB values are not valid until the system has started.
@@ -13,8 +13,8 @@ module servo_pwm_2ch (
     output wire        O_tilt
 );
     localparam [19:0] FRAME_TICKS = 20'd1_000_000;
-    localparam [15:0] SERVO_MIN_US = 16'd1000;
-    localparam [15:0] SERVO_MAX_US = 16'd2000;
+    localparam [15:0] SERVO_MIN_US = 16'd500;
+    localparam [15:0] SERVO_MAX_US = 16'd2500;
     localparam [22:0] STARTUP_TICKS = 23'd5_000_000; // 100 ms at 50 MHz
 
     reg [19:0] frame_count;

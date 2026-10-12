@@ -10,5 +10,7 @@ void max3421e_diag_report(void);
 
 /* Consume one decoded DOWN/MOVE/UP/CANCEL event from iface 0/EP 0x81. */
 int max3421e_touch_pop(TouchEvent *event);
+/* Poll the interrupt-IN endpoint independently of the slow diagnostics log. */
+void max3421e_touch_poll(void);
 
 #endif

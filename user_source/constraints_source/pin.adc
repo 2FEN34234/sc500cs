@@ -14,6 +14,11 @@ set_pin_assignment { O_usb_res_n } { LOCATION = M1; IOSTANDARD = LVCMOS33; DRIVE
 set_pin_assignment { O_lens_scl } { LOCATION = R6; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLUP; }
 set_pin_assignment { IO_lens_sda } { LOCATION = R7; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLUP; }
 
+# DS3231 RTC I2C. SCL=D15, SDA=C18; both FPGA pins are open-drain and the
+# module must provide (or be connected to) 3.3 V pull-ups.
+set_pin_assignment { IO_rtc_scl } { LOCATION = D15; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLUP; }
+set_pin_assignment { IO_rtc_sda } { LOCATION = C18; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLUP; }
+
 # Servo signal outputs. Use an external servo supply and share ground with FPGA.
 set_pin_assignment { O_servo_pan }  { LOCATION = V6; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLDOWN; }
 set_pin_assignment { O_servo_tilt } { LOCATION = V4; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLDOWN; }

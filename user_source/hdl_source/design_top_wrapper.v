@@ -25,6 +25,9 @@ module design_top_wrapper (
     // Lens actuator I2C: SCL=R6, SDA=R7.
     inout  wire       O_lens_scl,
     inout  wire       IO_lens_sda,
+    // DS3231 RTC I2C: SCL=D15, SDA=C18.  Both lines are open-drain.
+    inout  wire       IO_rtc_scl,
+    inout  wire       IO_rtc_sda,
     // Two hobby-servo control outputs, constrained to V6 and V4.
     output wire       O_servo_pan,
     output wire       O_servo_tilt,
@@ -173,6 +176,39 @@ module design_top_wrapper (
     wire        S_hdmi_out_hsync;
     wire        S_hdmi_out_de;
     wire[23:0]  S_hdmi_out_data;
+
+    // _9 image-menu state. All four physical keys are handled by the MCU
+    // menu; these values cross from the MCU APB clock into HDMI below.
+    wire [2:0]  S_dbg_disp_mode;
+    wire [2:0]  S_dbg_step;
+    wire [2:0]  S_dbg_effect_sel;
+    wire        S_dbg_awb_bypass;
+    wire        S_dbg_recog_mode;
+    wire        S_logo_enable;
+    wire [1:0]  S_motion_target;
+    reg         S_track_reacquire;
+
+    wire        S_shape_valid;
+    wire [2:0]  S_shape_type;
+    wire [11:0] S_shape_x0, S_shape_y0, S_shape_x1, S_shape_y1;
+    wire        S_motion_valid;
+    wire [15:0] S_motion_count;
+    wire [2:0]  S_motion_tvalid;
+    wire [11:0] S_motion_x0_0, S_motion_y0_0, S_motion_x1_0, S_motion_y1_0;
+    wire [11:0] S_motion_x0_1, S_motion_y0_1, S_motion_x1_1, S_motion_y1_1;
+    wire [11:0] S_motion_x0_2, S_motion_y0_2, S_motion_x1_2, S_motion_y1_2;
+    wire        S_color_valid;
+    wire [2:0]  S_color_code;
+    wire [15:0] S_color_count;
+    wire [11:0] S_color_x0, S_color_y0, S_color_x1, S_color_y1;
+    wire        S_track_new, S_track_valid;
+    wire [1:0]  S_track_state, S_track_dx, S_track_dy, S_track_lx, S_track_ly;
+    wire [11:0] S_track_x0, S_track_y0, S_track_x1, S_track_y1, S_track_cx, S_track_cy;
+    wire signed [12:0] S_track_ex, S_track_ey;
+    wire [6:0]  S_track_area;
+    wire [23:0] S_hdmi_base_data;
+    wire        S_hdmi_overlay_valid;
+
     wire        S_mcu_apb_clk;
     wire [19:0] S_mcu_paddr;
     wire        S_mcu_psel;
@@ -218,6 +254,12 @@ module design_top_wrapper (
     wire [31:0] S_lens_tx_count;
     wire S_lens_retry, S_lens_read_adc;
     wire [31:0] S_lens_adc_raw, S_lens_adc_count, S_lens_bus_state;
+    wire [7:0]  S_rtc_seconds, S_rtc_minutes, S_rtc_hours;
+    wire [7:0]  S_rtc_day, S_rtc_date, S_rtc_month, S_rtc_year;
+    wire        S_rtc_busy, S_rtc_valid, S_rtc_error, S_rtc_osf;
+    wire [3:0]  S_rtc_fault;
+    wire [31:0] S_rtc_read_count;
+    wire [31:0] S_rtc_time0, S_rtc_time1, S_rtc_status;
     wire [31:0] S_focus_metric_pix;
     wire [31:0] S_focus_metric_apb;
     wire [15:0] S_servo_pan_us;
@@ -300,6 +342,11 @@ module design_top_wrapper (
     wire [2:0]  S_ui_index_apb;
     wire [15:0] S_ui_ae_apb;
     wire [15:0] S_ui_ag_apb;
+    wire [2:0]  S_image_step_apb;
+    wire [2:0]  S_image_effect_apb;
+    wire [1:0]  S_image_target_apb;
+    wire        S_image_logo_apb;
+    wire        S_image_track_toggle_apb;
     reg [15:0]  S_ae_sync1;
     reg [15:0]  S_ae_sync2;
     reg [15:0]  S_ag_sync1;
@@ -312,10 +359,25 @@ module design_top_wrapper (
     reg [15:0]  S_ui_ag_p1, S_ui_ag_p2;
     reg [15:0]  S_ui_servo_pan_p1, S_ui_servo_pan_p2;
     reg [15:0]  S_ui_servo_tilt_p1, S_ui_servo_tilt_p2;
+    reg [2:0]   S_image_step_p1, S_image_step_p2;
+    reg [2:0]   S_image_effect_p1, S_image_effect_p2;
+    reg [1:0]   S_image_target_p1, S_image_target_p2;
+    reg         S_image_logo_p1, S_image_logo_p2;
+    reg         S_image_track_p1, S_image_track_p2, S_image_track_seen;
     wire        S_osd_vsync;
     wire        S_osd_hsync;
     wire        S_osd_de;
     wire [23:0] S_osd_data;
+
+    // MCU menu image controls.  The step numbering matches the _9 menu:
+    // 1/2 normal display, 3 shape, 4 motion, 5 red tracking.
+    assign S_dbg_step       = S_image_step_p2;
+    assign S_dbg_disp_mode  = (S_image_step_p2 >= 3'd3) ? 3'd0 : 3'd5;
+    assign S_dbg_recog_mode = (S_image_step_p2 >= 3'd3);
+    assign S_dbg_effect_sel = (S_image_step_p2 >= 3'd3) ? 3'd0 : S_image_effect_p2;
+    assign S_dbg_awb_bypass = 1'b0;
+    assign S_motion_target  = S_image_target_p2;
+    assign S_logo_enable    = S_image_logo_p2;
 
     assign S_focus_metric_apb = S_focus_metric_sync2;
 
@@ -667,8 +729,8 @@ module design_top_wrapper (
 
     always @(posedge S_24m_clk or negedge S_rst_n) begin
         if(!S_rst_n) begin
-            S_ae_sync1 <= 16'd2246;
-            S_ae_sync2 <= 16'd2246;
+            S_ae_sync1 <= 16'd5990;
+            S_ae_sync2 <= 16'd5990;
             S_ag_sync1 <= 16'd80;
             S_ag_sync2 <= 16'd80;
         end else begin
@@ -689,14 +751,26 @@ module design_top_wrapper (
             S_ui_info_p2   <= 1'b0;
             S_ui_index_p1  <= 3'd0;
             S_ui_index_p2  <= 3'd0;
-            S_ui_ae_p1     <= 16'd2246;
-            S_ui_ae_p2     <= 16'd2246;
+            S_ui_ae_p1     <= 16'd5990;
+            S_ui_ae_p2     <= 16'd5990;
             S_ui_ag_p1     <= 16'd80;
             S_ui_ag_p2     <= 16'd80;
             S_ui_servo_pan_p1  <= 16'd1500;
             S_ui_servo_pan_p2  <= 16'd1500;
             S_ui_servo_tilt_p1 <= 16'd1500;
             S_ui_servo_tilt_p2 <= 16'd1500;
+            S_image_step_p1    <= 3'd1;
+            S_image_step_p2    <= 3'd1;
+            S_image_effect_p1  <= 3'd0;
+            S_image_effect_p2  <= 3'd0;
+            S_image_target_p1  <= 2'd0;
+            S_image_target_p2  <= 2'd0;
+            S_image_logo_p1    <= 1'b1;
+            S_image_logo_p2    <= 1'b1;
+            S_image_track_p1   <= 1'b0;
+            S_image_track_p2   <= 1'b0;
+            S_image_track_seen <= 1'b0;
+            S_track_reacquire  <= 1'b0;
         end else begin
             S_ui_enable_p1 <= S_ui_enable_apb;
             S_ui_enable_p2 <= S_ui_enable_p1;
@@ -714,6 +788,18 @@ module design_top_wrapper (
             S_ui_servo_pan_p2  <= S_ui_servo_pan_p1;
             S_ui_servo_tilt_p1 <= S_servo_tilt_us;
             S_ui_servo_tilt_p2 <= S_ui_servo_tilt_p1;
+            S_image_step_p1    <= S_image_step_apb;
+            S_image_step_p2    <= S_image_step_p1;
+            S_image_effect_p1  <= S_image_effect_apb;
+            S_image_effect_p2  <= S_image_effect_p1;
+            S_image_target_p1  <= S_image_target_apb;
+            S_image_target_p2  <= S_image_target_p1;
+            S_image_logo_p1    <= S_image_logo_apb;
+            S_image_logo_p2    <= S_image_logo_p1;
+            S_image_track_p1   <= S_image_track_toggle_apb;
+            S_image_track_p2   <= S_image_track_p1;
+            S_track_reacquire  <= S_image_track_p2 ^ S_image_track_seen;
+            S_image_track_seen <= S_image_track_p2;
         end
     end
 	
@@ -852,6 +938,39 @@ module design_top_wrapper (
         .O_bus_state   ( S_lens_bus_state )
     );
 
+    // DS3231 is on its own bus so VCM recovery and MAX3421E traffic cannot
+    // disturb the clock.  The controller returns raw BCD values through APB.
+    ds3231_i2c_ctrl #(
+        .CLK_DIV      ( 16'd499 ),
+        .POLL_CYCLES  ( 32'd50000000 ),
+        .GAP_CYCLES   ( 32'd1000 )
+    ) u_ds3231_i2c_ctrl (
+        .I_clk        ( S_mcu_apb_clk ),
+        .I_rst_n      ( S_rst_n ),
+        .IO_scl       ( IO_rtc_scl ),
+        .IO_sda       ( IO_rtc_sda ),
+        .O_seconds    ( S_rtc_seconds ),
+        .O_minutes    ( S_rtc_minutes ),
+        .O_hours      ( S_rtc_hours ),
+        .O_day        ( S_rtc_day ),
+        .O_date       ( S_rtc_date ),
+        .O_month      ( S_rtc_month ),
+        .O_year       ( S_rtc_year ),
+        .O_busy       ( S_rtc_busy ),
+        .O_valid      ( S_rtc_valid ),
+        .O_error      ( S_rtc_error ),
+        .O_fault      ( S_rtc_fault ),
+        .O_osf        ( S_rtc_osf ),
+        .O_read_count ( S_rtc_read_count )
+    );
+
+    assign S_rtc_time0 = {8'd0, S_rtc_hours, S_rtc_minutes, S_rtc_seconds};
+    assign S_rtc_time1 = {S_rtc_year, S_rtc_month, S_rtc_date, S_rtc_day};
+    // [31:16] successful read count, [15:8] reserved, [7] OSF, [6:3] fault,
+    // [2] error, [1] valid, [0] busy.
+    assign S_rtc_status = {S_rtc_read_count[15:0], 8'd0, S_rtc_osf, S_rtc_fault,
+                           S_rtc_error, S_rtc_valid, S_rtc_busy};
+
     // 50 MHz APB clock: 20 ns/count, so 1 us equals 50 counts.
     servo_pwm_2ch u_servo_pwm_2ch (
         .I_clk       ( S_mcu_apb_clk  ),
@@ -887,6 +1006,11 @@ module design_top_wrapper (
         .O_menu_index  ( S_ui_index_apb ),
         .O_exposure    ( S_ui_ae_apb ),
         .O_gain        ( S_ui_ag_apb ),
+        .O_image_step  ( S_image_step_apb ),
+        .O_image_effect( S_image_effect_apb ),
+        .O_image_target( S_image_target_apb ),
+        .O_image_logo_enable( S_image_logo_apb ),
+        .O_image_track_toggle( S_image_track_toggle_apb ),
         .I_lens_busy   ( S_lens_busy ),
         .I_lens_init_done( S_lens_init_done ),
         .I_lens_error  ( S_lens_error ),
@@ -896,6 +1020,9 @@ module design_top_wrapper (
         .I_lens_adc_count( S_lens_adc_count ),
         .I_lens_bus_state( S_lens_bus_state ),
         .I_focus_metric( S_focus_metric_apb ),
+        .I_rtc_time0   ( S_rtc_time0 ),
+        .I_rtc_time1   ( S_rtc_time1 ),
+        .I_rtc_status  ( S_rtc_status ),
         .O_lens_cmd    ( S_lens_cmd ),
         .O_lens_retry  ( S_lens_retry ),
         .O_lens_read_adc( S_lens_read_adc ),
@@ -1220,6 +1347,98 @@ isp_top u_isp_top (
         .O_vtc_last    ( S_hdmi_last      )
     );
 
+    // Image mode/effect/target/logo are supplied by the MCU APB menu.  The
+    // former FPGA-side dbg_ctrl and its second key debouncer are intentionally
+    // removed so all four physical buttons have one owner.
+
+    // The current ISP/DDR path remains the source of the display pixels. The
+    // recognition branches are parallel consumers and do not alter USB, VCM,
+    // MCU, or manual-servo ownership of the video path.
+    shape_recognizer_simple #(
+        .IMG_WIDTH    (`DISPLAY_WIDTH),
+        .IMG_HEIGHT   (`DISPLAY_HEIGHT),
+        .SAMPLE_SHIFT (4),
+        .Y_THRESHOLD  (8'd96)
+    ) u_shape_recognizer_99 (
+        .I_clk      ( S_hdmi_pixel_clk ),
+        .I_rst_n    ( S_hdmi_rst_n ),
+        .I_vsync    ( S_hdmi_vsync ),
+        .I_hsync    ( S_hdmi_hsync ),
+        .I_user     ( S_hdmi_user ),
+        .I_de       ( S_hdmi_window_rd_en ),
+        .I_data     ( S_video_rd_data ),
+        .I_enable   ( S_dbg_recog_mode && (S_dbg_step == 3'd3) ),
+        .O_valid    ( S_shape_valid ),
+        .O_type     ( S_shape_type ),
+        .O_x0       ( S_shape_x0 ), .O_y0 ( S_shape_y0 ),
+        .O_x1       ( S_shape_x1 ), .O_y1 ( S_shape_y1 )
+    );
+
+    motion_detect #(
+        .IMG_WIDTH      (`DISPLAY_WIDTH),
+        .IMG_HEIGHT     (`DISPLAY_HEIGHT),
+        .BLOCK_SHIFT    (5),
+        .DIFF_THRESHOLD (8'd20),
+        .MIN_BLOCKS     (16'd4)
+    ) u_motion_detect_99 (
+        .I_clk      ( S_hdmi_pixel_clk ),
+        .I_rst_n    ( S_hdmi_rst_n ),
+        .I_user     ( S_hdmi_user ),
+        .I_de       ( S_hdmi_window_rd_en ),
+        .I_data     ( S_video_rd_data ),
+        .I_enable   ( S_dbg_recog_mode && (S_dbg_step == 3'd4) ),
+        .I_target_mode ( S_motion_target ),
+        .O_valid    ( S_motion_valid ), .O_count ( S_motion_count ),
+        .O_tvalid   ( S_motion_tvalid ),
+        .O_x0_0 (S_motion_x0_0), .O_y0_0 (S_motion_y0_0),
+        .O_x1_0 (S_motion_x1_0), .O_y1_0 (S_motion_y1_0),
+        .O_x0_1 (S_motion_x0_1), .O_y0_1 (S_motion_y0_1),
+        .O_x1_1 (S_motion_x1_1), .O_y1_1 (S_motion_y1_1),
+        .O_x0_2 (S_motion_x0_2), .O_y0_2 (S_motion_y0_2),
+        .O_x1_2 (S_motion_x1_2), .O_y1_2 (S_motion_y1_2)
+    );
+
+    color_detect #(
+        .IMG_WIDTH    (`DISPLAY_WIDTH),
+        .IMG_HEIGHT   (`DISPLAY_HEIGHT),
+        .SAMPLE_SHIFT (4),
+        .MIN_SAMPLES  (16'd16)
+    ) u_color_detect_99 (
+        .I_clk      ( S_hdmi_pixel_clk ),
+        .I_rst_n    ( S_hdmi_rst_n ),
+        .I_user     ( S_hdmi_user ),
+        .I_de       ( S_hdmi_window_rd_en ),
+        .I_data     ( S_video_rd_data ),
+        .I_enable   ( S_dbg_recog_mode && (S_dbg_step == 3'd4) ),
+        .O_valid    ( S_color_valid ), .O_color ( S_color_code ),
+        .O_count    ( S_color_count ),
+        .O_x0       ( S_color_x0 ), .O_y0 (S_color_y0),
+        .O_x1       ( S_color_x1 ), .O_y1 (S_color_y1)
+    );
+
+    red_target_tracker #(
+        .IMG_WIDTH    (`DISPLAY_WIDTH),
+        .IMG_HEIGHT   (`DISPLAY_HEIGHT),
+        .SAMPLE_SHIFT (4)
+    ) u_red_target_tracker_99 (
+        .I_clk       ( S_hdmi_pixel_clk ),
+        .I_rst_n     ( S_hdmi_rst_n ),
+        .I_enable    ( S_dbg_recog_mode && (S_dbg_step == 3'd5) ),
+        .I_reacquire ( S_track_reacquire ),
+        .I_user      ( S_hdmi_user ),
+        .I_de        ( S_hdmi_window_rd_en ),
+        .I_data      ( S_video_rd_data ),
+        .O_new_result (S_track_new), .O_valid (S_track_valid),
+        .O_state     (S_track_state),
+        .O_x0 (S_track_x0), .O_y0 (S_track_y0),
+        .O_x1 (S_track_x1), .O_y1 (S_track_y1),
+        .O_cx (S_track_cx), .O_cy (S_track_cy),
+        .O_error_x (S_track_ex), .O_error_y (S_track_ey),
+        .O_dir_x (S_track_dx), .O_dir_y (S_track_dy),
+        .O_level_x (S_track_lx), .O_level_y (S_track_ly),
+        .O_area_percent (S_track_area)
+    );
+
     hdmi_mixer #(
         .H_OFFSET   ( 0    ),
         .V_OFFSET   ( 0    ),
@@ -1236,6 +1455,40 @@ isp_top u_isp_top (
         .I_video_user    ( S_hdmi_user        ),
         .I_video_last    ( S_hdmi_last        ),
         .I_debug_status  ( S_hdmi_debug_status),
+        .I_dbg_mode      ( S_dbg_disp_mode ),
+        .I_dbg_step      ( S_dbg_step ),
+        .I_dbg_effect    ( S_dbg_effect_sel ),
+        .I_dbg_awb_off   ( S_dbg_awb_bypass ),
+        .I_recog_mode    ( S_dbg_recog_mode ),
+        .I_logo_enable   ( S_logo_enable ),
+        .I_motion_target ( S_motion_target ),
+        .I_dbg_sat_pre   ( 8'd0 ), .I_dbg_sat_post ( 8'd0 ),
+        .I_dbg_mean_r    ( 8'd0 ), .I_dbg_mean_g (8'd0), .I_dbg_mean_b (8'd0),
+        .I_dbg_min_r     ( 8'd0 ), .I_dbg_noise (8'd0), .I_dbg_mean_y (8'd0),
+        .I_shape_valid   ( S_shape_valid ), .I_shape_type (S_shape_type),
+        .I_shape_x0      ( S_shape_x0 ), .I_shape_y0 (S_shape_y0),
+        .I_shape_x1      ( S_shape_x1 ), .I_shape_y1 (S_shape_y1),
+        .I_motion_valid  ( S_motion_valid ), .I_motion_count (S_motion_count),
+        .I_motion_tvalid ( S_motion_tvalid ),
+        .I_motion_x0_0 (S_motion_x0_0), .I_motion_y0_0 (S_motion_y0_0),
+        .I_motion_x1_0 (S_motion_x1_0), .I_motion_y1_0 (S_motion_y1_0),
+        .I_motion_x0_1 (S_motion_x0_1), .I_motion_y0_1 (S_motion_y0_1),
+        .I_motion_x1_1 (S_motion_x1_1), .I_motion_y1_1 (S_motion_y1_1),
+        .I_motion_x0_2 (S_motion_x0_2), .I_motion_y0_2 (S_motion_y0_2),
+        .I_motion_x1_2 (S_motion_x1_2), .I_motion_y1_2 (S_motion_y1_2),
+        .I_color_valid  ( S_color_valid ), .I_color_code (S_color_code),
+        .I_color_count  ( S_color_count ),
+        .I_color_x0 (S_color_x0), .I_color_y0 (S_color_y0),
+        .I_color_x1 (S_color_x1), .I_color_y1 (S_color_y1),
+        .I_track_new (S_track_new), .I_track_valid (S_track_valid),
+        .I_track_state (S_track_state),
+        .I_track_dx (S_track_dx), .I_track_dy (S_track_dy),
+        .I_track_lx (S_track_lx), .I_track_ly (S_track_ly),
+        .I_track_x0 (S_track_x0), .I_track_y0 (S_track_y0),
+        .I_track_x1 (S_track_x1), .I_track_y1 (S_track_y1),
+        .I_track_cx (S_track_cx), .I_track_cy (S_track_cy),
+        .I_track_ex (S_track_ex), .I_track_ey (S_track_ey),
+        .I_track_area (S_track_area),
         .O_video_rd_en   ( S_hdmi_window_rd_en),
         .I_video_rd_data ( S_video_rd_data    ),
         .O_hdmi_vsync    ( S_hdmi_out_vsync   ),

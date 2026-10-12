@@ -10,6 +10,12 @@
 #include <stdlib.h>
 #include "max3421e_diag.h"
 
+/* Touch-report capture build: keep USART1 dedicated to HID touch packets. */
+#define USB_TOUCH_ONLY_SERIAL 1
+#if USB_TOUCH_ONLY_SERIAL
+#define al_printf(...) ((void)0)
+#endif
+
 #ifndef UI_APB_BASE
 /* PH1P MCU APB window.  The APB bridge exports the low 20 address bits as
  * paddr; 0x70000000 is the address used by the Anlogic TD/FD flow. */
@@ -37,9 +43,16 @@
 /* Servo pulse widths in microseconds: V6/pan and V4/tilt. */
 #define UI_SERVO_PAN_US  0x50
 #define UI_SERVO_TILT_US 0x54
+#define UI_IMAGE_CTRL    0x58
+#define UI_BUILD_ID      0x5c
+#define UI_RTC_TIME0     0x60
+#define UI_RTC_TIME1     0x64
+#define UI_RTC_STATUS    0x68
+#define CAMERA_BUILD_ID  0x20261011u
 #define SERVO_MENU_MIN_US  1000u
 #define SERVO_MENU_MAX_US  2000u
 #define SERVO_MENU_STEP_US 25u
+#define GAIN_MENU_STEP     8u
 
 /* Run real USB-SPI and VCM-I2C transactions often enough for a logic
  * analyzer to trigger reliably. The main loop delay is board/SDK dependent;
@@ -62,6 +75,10 @@ volatile uint32_t g_ui_debug_id;
 volatile uint32_t g_ui_debug_events;
 volatile uint32_t g_ui_debug_loops;
 volatile uint32_t g_ui_debug_id_retries;
+/* DS3231 snapshot for debugger/OSD integration. Values are raw BCD. */
+volatile uint32_t g_rtc_time0;
+volatile uint32_t g_rtc_time1;
+volatile uint32_t g_rtc_status;
 
 static inline volatile uint32_t *ui_reg(uint32_t offset)
 {
@@ -83,20 +100,16 @@ static void ui_ctrl(uint32_t menu, uint32_t edit, uint32_t info)
     ui_write(UI_CTRL, (menu ? 1u : 0u) | (edit ? 2u : 0u) | (info ? 4u : 0u));
 }
 
-static void servo_menu_step(uint32_t offset, uint32_t *pulse_us, int direction)
+/* MCU-owned _9 image controls.  step is 1..5: normal/effect, normal/effect,
+ * shape, motion, red tracking.  In motion mode target selects 3/2/1 in the
+ * FPGA recognizer; in tracking mode bit 9 requests a reacquire pulse. */
+static void image_ctrl_write(uint32_t step, uint32_t effect,
+                             uint32_t target, uint32_t logo, uint32_t reset)
 {
-    uint32_t next = *pulse_us;
-    if(direction > 0)
-        next = (next >= SERVO_MENU_MAX_US - SERVO_MENU_STEP_US) ?
-               SERVO_MENU_MAX_US : next + SERVO_MENU_STEP_US;
-    else
-        next = (next <= SERVO_MENU_MIN_US + SERVO_MENU_STEP_US) ?
-               SERVO_MENU_MIN_US : next - SERVO_MENU_STEP_US;
-    ui_write(offset, next);
-    *pulse_us = ui_read(offset);
-    al_printf("SERVO: %s pulse=%u us (readback=%u)\r\n",
-              offset == UI_SERVO_PAN_US ? "PAN/V6" : "TILT/V4",
-              next, *pulse_us);
+    uint32_t value = (step & 7u) | ((effect & 7u) << 3) |
+                     ((target & 3u) << 6) | (logo ? (1u << 8) : 0u) |
+                     (reset ? (1u << 9) : 0u);
+    ui_write(UI_IMAGE_CTRL, value);
 }
 
 /* FireWater fixed six channels: target, metric, status, raw84, raw85, valid.
@@ -112,14 +125,42 @@ static void focus_plot(uint32_t position, uint32_t metric, uint32_t status)
               valid ? (int)((adc >> 8) & 255u) : -1, valid);
 }
 
-/* Coarse contrast-search autofocus. The FPGA owns the I2C timing; the MCU
- * only sends a 14-bit position and samples the frame metric. */
-static uint32_t af_state = 3;       /* 0 idle, 1 settling, 2 scanning, 3 done */
+/* Two-pass autofocus with temporal averaging.  The focus metric is a
+ * frame-level contrast value from the FPGA.  Averaging three settled frames
+ * at every lens position rejects the moving-frame/noise spikes that made a
+ * one-sample maximum choose a visibly soft position.  The coarse pass finds
+ * the broad peak; the fine pass rescans +/-512 codes at 64-code resolution. */
+#define AF_POS_MAX        16383u
+#define AF_COARSE_STEP      512u
+#define AF_FINE_STEP         64u
+#define AF_FINE_RADIUS      512u
+#define AF_SETTLE_MS         80u
+#define AF_SAMPLE_GAP_MS     30u
+#define AF_SAMPLES             3u
+static uint32_t af_state = 3;       /* 0 start, 1 coarse, 2 fine, 3 done */
 static uint32_t af_wait_ms;
 static uint32_t af_position;
+static uint32_t af_scan_end;
+static uint32_t af_scan_step;
 static uint32_t af_best_position;
 static uint32_t af_best_metric;
+static uint32_t af_metric_sum;
+static uint32_t af_metric_count;
+static uint32_t af_metric_min;
+static uint32_t af_metric_max;
 static uint32_t lens_last_tx_count;
+
+static void autofocus_command(uint32_t position)
+{
+    af_position = position & 0x3fffu;
+    ui_write(UI_LENS_POS, af_position);
+    ui_write(UI_LENS_CMD, 1u);
+    af_wait_ms = 0;
+    af_metric_sum = 0;
+    af_metric_count = 0;
+    af_metric_min = 0xffffffffu;
+    af_metric_max = 0;
+}
 
 /* Report the most recent completed transaction; a failure freezes the result
  * until an explicit retry, so successful background reads cannot hide it. */
@@ -149,8 +190,9 @@ static void lens_diag_report(void)
     if(lens_diag_available == 3) {
         uint32_t adc = ui_read(UI_LENS_ADC_RAW);
         pins = ui_read(UI_LENS_BUS_STATE);
-        al_printf("LOG: LENS bus SCL=%u SDA=%u release_scl=%u release_sda=%u\r\n",
-                  pins & 1u, (pins >> 1) & 1u, (pins >> 2) & 1u, (pins >> 3) & 1u);
+        al_printf("LOG: LENS bus SCL=%u SDA=%u release_scl=%u release_sda=%u recovery_attempts=%u\r\n",
+                  pins & 1u, (pins >> 1) & 1u, (pins >> 2) & 1u, (pins >> 3) & 1u,
+                  pins >> 16);
         if(adc & (1u << 16))
             al_printf("LOG: LENS ADC raw84=0x%02x raw85=0x%02x valid=1 sample=%u\r\n",
                       adc & 255u, (adc >> 8) & 255u, ui_read(UI_LENS_ADC_COUNT));
@@ -183,16 +225,20 @@ static void autofocus_restart(void)
     af_state = 0;
     af_wait_ms = 0;
     af_position = 0;
+    af_scan_end = AF_POS_MAX;
+    af_scan_step = AF_COARSE_STEP;
     af_best_position = 0;
     af_best_metric = 0;
-    al_printf("LOG: AF key trigger, restarting coarse scan\r\n");
+    af_metric_sum = 0;
+    af_metric_count = 0;
+    al_printf("LOG: AF key trigger, 3-frame averaged coarse+fine scan\r\n");
 }
 
 static void manual_focus_step(int32_t delta)
 {
     uint32_t status = ui_read(UI_LENS_STAT);
     uint32_t position = ui_read(UI_LENS_POS) & 0x3fffu;
-    /* 手动操作停止粗扫描，避免下一次轮询覆盖手动命令。 */
+    /* Manual operation stops a scan so the next poll cannot overwrite it. */
     af_state = 3;
     if((status & 7u) != 2u) {
         al_printf("LOG: AF manual rejected status=0x%x (busy/not initialized/error)\r\n", status);
@@ -200,13 +246,14 @@ static void manual_focus_step(int32_t delta)
         return;
     }
     if(delta > 0) {
-        position = (position >= 16383u - 256u) ? 16383u : position + 256u;
+        position = (position >= AF_POS_MAX - AF_FINE_STEP) ? AF_POS_MAX : position + AF_FINE_STEP;
     } else {
-        position = (position <= 256u) ? 0u : position - 256u;
+        position = (position <= AF_FINE_STEP) ? 0u : position - AF_FINE_STEP;
     }
     ui_write(UI_LENS_POS, position);
     ui_write(UI_LENS_CMD, 1u);
-    al_printf("LOG: AF manual direction=%s\r\n", (delta > 0) ? "UP" : "DOWN");
+    al_printf("LOG: AF manual direction=%s position=%u step=%u\r\n",
+              (delta > 0) ? "UP" : "DOWN", position, AF_FINE_STEP);
     focus_plot(position, ui_read(UI_FOCUS_METRIC), ui_read(UI_LENS_STAT));
 }
 
@@ -214,6 +261,8 @@ static void autofocus_task(void)
 {
     uint32_t status;
     uint32_t metric;
+    uint32_t average;
+    uint32_t next;
 
     if(af_state == 3)
         return;
@@ -224,46 +273,117 @@ static void autofocus_task(void)
         return;
     }
     if(!(status & (1u << 1)))
-        return;                       /* lens active-mode init not complete */
+        return;                       /* active-mode init not complete */
     if(status & 1u)
-        return;                       /* do not restart during an I2C transaction */
+        return;                       /* do not poll during I2C transaction */
 
     if(af_state == 0) {
         af_position = 0;
+        af_scan_end = AF_POS_MAX;
+        af_scan_step = AF_COARSE_STEP;
         af_best_position = 0;
         af_best_metric = 0;
-        ui_write(UI_LENS_POS, af_position);
-        ui_write(UI_LENS_CMD, 1);
-        af_wait_ms = 0;
+        autofocus_command(af_position);
         af_state = 1;
-        al_printf("LOG: AF coarse scan started\r\n");
-        return;
-    }
-    if(status & 1u)
-        return;                       /* position transaction still busy */
-    if(af_wait_ms < 70) {             /* allow lens and two video frames to settle */
-        af_wait_ms++;
+        al_printf("LOG: AF coarse scan started step=%u samples=%u settle=%ums\r\n",
+                  AF_COARSE_STEP, AF_SAMPLES, AF_SETTLE_MS);
         return;
     }
 
+    /* Wait after a move, then use several frame values at the same position.
+     * The first frame is discarded by the settle delay; the next three are
+     * averaged before this position can compete for the peak. */
+    if(af_wait_ms < ((af_metric_count == 0u) ? AF_SETTLE_MS : AF_SAMPLE_GAP_MS)) {
+        af_wait_ms++;
+        return;
+    }
     metric = ui_read(UI_FOCUS_METRIC);
-    focus_plot(af_position, metric, status);
-    if(metric > af_best_metric) {
-        af_best_metric = metric;
+    af_metric_sum += metric;
+    if(metric < af_metric_min) af_metric_min = metric;
+    if(metric > af_metric_max) af_metric_max = metric;
+    af_metric_count++;
+    af_wait_ms = 0;
+    if(af_metric_count < AF_SAMPLES)
+        return;
+
+    average = af_metric_sum / AF_SAMPLES;
+    focus_plot(af_position, average, status);
+    if(average > af_best_metric) {
+        af_best_metric = average;
         af_best_position = af_position;
     }
-    if(af_position >= 16383u - 512u) {
-        ui_write(UI_LENS_POS, af_best_position);
-        ui_write(UI_LENS_CMD, 1);
-        af_state = 3;
-        /* 最优指标是历史采样值，用文本报告，避免混入当前曲线。 */
-        al_printf("LOG: AF done position=%u best_metric=%u\r\n",
-                  af_best_position, af_best_metric);
+    al_printf("LOG: AF sample position=%u avg=%u min=%u max=%u pass=%s\r\n",
+              af_position, average, af_metric_min, af_metric_max,
+              (af_state == 1u) ? "coarse" : "fine");
+
+    if(af_position >= af_scan_end) {
+        if(af_state == 1u) {
+            uint32_t center = af_best_position;
+            uint32_t fine_start = (center > AF_FINE_RADIUS) ?
+                                   center - AF_FINE_RADIUS : 0u;
+            af_scan_end = (center + AF_FINE_RADIUS < AF_POS_MAX) ?
+                          center + AF_FINE_RADIUS : AF_POS_MAX;
+            af_scan_step = AF_FINE_STEP;
+            af_position = fine_start;
+            af_state = 2;
+            autofocus_command(af_position);
+            al_printf("LOG: AF fine scan center=%u range=%u..%u step=%u samples=%u\r\n",
+                      center, fine_start, af_scan_end, AF_FINE_STEP, AF_SAMPLES);
+        } else {
+            /* The averaged peak is the final command.  Keeping the command at
+             * the measured grid point avoids a noisy interpolation overshoot. */
+            autofocus_command(af_best_position);
+            af_state = 3;
+            al_printf("LOG: AF done position=%u best_metric=%u (3-frame average)\r\n",
+                      af_best_position, af_best_metric);
+        }
     } else {
-        af_position += 512u;
-        ui_write(UI_LENS_POS, af_position);
-        ui_write(UI_LENS_CMD, 1);
-        af_wait_ms = 0;
+        next = af_position + af_scan_step;
+        if(next > af_scan_end)
+            next = af_scan_end;
+        autofocus_command(next);
+    }
+}
+
+/* All inputs commit through this one hardware boundary. */
+static void menu_commit(MenuState *s, const MenuState *old, unsigned actions)
+{
+    if(s->exposure != old->exposure) {
+        ui_write(UI_EXPOSURE, s->exposure);
+        s->exposure = ui_read(UI_EXPOSURE);
+    }
+    if(s->gain != old->gain) {
+        ui_write(UI_GAIN, s->gain);
+        s->gain = ui_read(UI_GAIN);
+    }
+    if(s->servo_menu_available && s->servo_pan_us != old->servo_pan_us) {
+        ui_write(UI_SERVO_PAN_US, s->servo_pan_us);
+        s->servo_pan_us = ui_read(UI_SERVO_PAN_US);
+    }
+    if(s->servo_menu_available && s->servo_tilt_us != old->servo_tilt_us) {
+        ui_write(UI_SERVO_TILT_US, s->servo_tilt_us);
+        s->servo_tilt_us = ui_read(UI_SERVO_TILT_US);
+    }
+    if(s->image_step != old->image_step || s->image_effect != old->image_effect ||
+       s->image_target != old->image_target || s->logo_enable != old->logo_enable ||
+       (actions & MENU_REACQUIRE))
+        image_ctrl_write(s->image_step, s->image_effect, s->image_target,
+                         s->logo_enable, (actions & MENU_REACQUIRE) != 0);
+    if(s->index != old->index) ui_write(UI_INDEX, s->index);
+    if(s->menu != old->menu || s->edit != old->edit || s->info != old->info)
+        ui_ctrl(s->menu, s->edit, s->info);
+    if(actions & MENU_AF) autofocus_restart();
+    if(actions & MENU_FOCUS_UP) manual_focus_step(1);
+    if(actions & MENU_FOCUS_DOWN) manual_focus_step(-1);
+}
+
+static void touchscreen_handle(MenuState *s)
+{
+    TouchEvent event;
+    if(max3421e_touch_pop(&event)) {
+        MenuState old = *s;
+        unsigned actions = menu_touch(s, &event);
+        menu_commit(s, &old, actions);
     }
 }
 
@@ -271,16 +391,11 @@ AL_S32 main(void)
 {
     uint32_t id;
     uint32_t events;
-    uint32_t menu = 1;
-    uint32_t edit = 0;
-    uint32_t info = 0;
-    uint32_t index = 0;
-    uint32_t exposure = 2246;
-    uint32_t gain = 80;
-    uint32_t servo_pan_us = 1500;
-    uint32_t servo_tilt_us = 1500;
-    uint32_t servo_menu_available = 0;
-    uint32_t menu_items = 4;
+    MenuState ui = {
+        .menu = 1, .exposure = 5990, .gain = 80,
+        .servo_pan_us = 1500, .servo_tilt_us = 1500,
+        .image_step = 1, .logo_enable = 1, .touch_capture = -1
+    };
     uint32_t last_report = 0;
 
     g_ui_debug_stage = 1;
@@ -313,22 +428,34 @@ AL_S32 main(void)
     al_printf("LOG: LENS diagnostics %s\r\n",
               lens_diag_available == 3 ? "LIC3 open-drain 100kHz + ADC84/85 + retry" :
               "OLD/MISSING: rebuild/download LIC3 FPGA bit");
-    al_printf("LOG: AF manual on boot; menu off: UP/DOWN=position, BACK=AF or retry, OK=menu\r\n");
+    al_printf("LOG: AF manual on boot; menu on: UP/DOWN=select, BACK=exit, OK=edit\r\n");
     lens_diag_report();
 
-    exposure = ui_read(UI_EXPOSURE);
-    gain = ui_read(UI_GAIN);
-    servo_pan_us = ui_read(UI_SERVO_PAN_US);
-    servo_tilt_us = ui_read(UI_SERVO_TILT_US);
-    servo_menu_available = (servo_pan_us >= 500u && servo_pan_us <= 2500u &&
-                            servo_tilt_us >= 500u && servo_tilt_us <= 2500u);
-    menu_items = servo_menu_available ? 6u : 4u;
+    /* Apply startup defaults even when the previous APB value is legal.
+     * Legacy gain 16 is a valid sensor code but displays as an empty bar. */
+    ui.exposure = 5990u;
+    ui.gain = 80u;
+    ui_write(UI_EXPOSURE, ui.exposure);
+    ui_write(UI_GAIN, ui.gain);
+    ui.exposure = ui_read(UI_EXPOSURE);
+    ui.gain = ui_read(UI_GAIN);
+    al_printf("CAM: exposure_user=%u gain_user=%u gain_index=%u (sensor table)\r\n",
+              ui.exposure, ui.gain, (ui.gain >= 16u) ? ui.gain - 16u : 0u);
+    al_printf("CAM: firmware=20261011 fpga=0x%08x expected=0x%08x\r\n",
+              ui_read(UI_BUILD_ID), CAMERA_BUILD_ID);
+    if(ui_read(UI_BUILD_ID) != CAMERA_BUILD_ID)
+        al_printf("CAM: FPGA version mismatch; download the matching 20261011 bitstream\r\n");
+    ui.servo_pan_us = ui_read(UI_SERVO_PAN_US);
+    ui.servo_tilt_us = ui_read(UI_SERVO_TILT_US);
+    ui.servo_menu_available = (ui.servo_pan_us >= 500u && ui.servo_pan_us <= 2500u &&
+                            ui.servo_tilt_us >= 500u && ui.servo_tilt_us <= 2500u);
+    image_ctrl_write(ui.image_step, ui.image_effect, ui.image_target, ui.logo_enable, 0);
     al_printf("SERVO: %s PAN/V6=%u us TILT/V4=%u us\r\n",
-              servo_menu_available ? "menu ready" : "new FPGA bit required",
-              servo_pan_us, servo_tilt_us);
+              ui.servo_menu_available ? "menu ready" : "new FPGA bit required",
+              ui.servo_pan_us, ui.servo_tilt_us);
     /* APB 检查通过后自动显示菜单，便于直接确认 CPU 到 OSD 的链路。 */
-    ui_write(UI_INDEX, index);
-    ui_ctrl(menu, edit, info);
+    ui_write(UI_INDEX, ui.index);
+    ui_ctrl(ui.menu, ui.edit, ui.info);
     g_ui_debug_stage = 4;
     /* USB diagnostics are bounded; the existing menu continues on failure. */
     max3421e_diag_init((uint32_t)UI_APB_BASE);
@@ -340,77 +467,11 @@ AL_S32 main(void)
         g_ui_debug_events = events;
         g_ui_debug_loops++;
         if(events) {
-            ui_write(UI_KEY, events); // write-one-to-clear
-            al_printf("KEY: events=0x%02x menu=%u edit=%u index=%u\r\n",
-                      events, menu, edit, index);
-
-            if(!menu) {
-                if(events & KEY_BACK) {
-                    autofocus_restart();
-                    menu = 0;
-                    edit = 0;
-                    info = 0;
-                } else if(events & KEY_UP) {
-                    manual_focus_step(1);
-                } else if(events & KEY_DOWN) {
-                    manual_focus_step(-1);
-                } else if(events & KEY_OK) {
-                    menu = 1;
-                    index = 0;
-                    info = 0;
-                    ui_write(UI_INDEX, index);
-                    ui_ctrl(menu, edit, info);
-                }
-            } else if(edit) {
-                if(events & KEY_BACK) {
-                    edit = 0;
-                } else if(events & KEY_OK) {
-                    edit = 0;
-                } else if(events & KEY_UP) {
-                    if(index == 0 && exposure < 5990) exposure += (exposure <= 5870) ? 120 : (5990 - exposure);
-                    if(index == 1 && gain < 143) gain++;
-                    if(index == 0) ui_write(UI_EXPOSURE, exposure);
-                    if(index == 1) ui_write(UI_GAIN, gain);
-                    if(index == 2 && servo_menu_available)
-                        servo_menu_step(UI_SERVO_PAN_US, &servo_pan_us, 1);
-                    if(index == 3 && servo_menu_available)
-                        servo_menu_step(UI_SERVO_TILT_US, &servo_tilt_us, 1);
-                } else if(events & KEY_DOWN) {
-                    if(index == 0) exposure = (exposure > 123) ? exposure - 120 : 3;
-                    if(index == 1) gain = (gain > 16) ? gain - 1 : 16;
-                    if(index == 0) ui_write(UI_EXPOSURE, exposure);
-                    if(index == 1) ui_write(UI_GAIN, gain);
-                    if(index == 2 && servo_menu_available)
-                        servo_menu_step(UI_SERVO_PAN_US, &servo_pan_us, -1);
-                    if(index == 3 && servo_menu_available)
-                        servo_menu_step(UI_SERVO_TILT_US, &servo_tilt_us, -1);
-                }
-            } else {
-                if(events & KEY_BACK) {
-                    menu = 0;
-                    info = 0;
-                } else if(events & KEY_UP) {
-                    index = (index == 0) ? menu_items - 1u : index - 1u;
-                } else if(events & KEY_DOWN) {
-                    index = (index == menu_items - 1u) ? 0u : index + 1u;
-                } else if(events & KEY_OK) {
-                    if(index == 0 || index == 1 ||
-                       (servo_menu_available && (index == 2 || index == 3))) {
-                        edit = 1;
-                        info = 0;
-                        if(index == 2 || index == 3)
-                            al_printf("SERVO: edit %s, UP/DOWN = 25 us, BACK/OK = finish\r\n",
-                                      index == 2 ? "PAN/V6" : "TILT/V4");
-                    } else if(index == menu_items - 2u) {
-                        info = !info;
-                    } else {
-                        menu = 0;
-                        info = 0;
-                    }
-                }
-                ui_write(UI_INDEX, index);
-            }
-            ui_ctrl(menu, edit, info);
+            MenuState old = ui;
+            unsigned actions;
+            ui_write(UI_KEY, events); /* write-one-to-clear */
+            actions = menu_key(&ui, events);
+            menu_commit(&ui, &old, actions);
         }
 
         lens_diag_report();
@@ -425,6 +486,22 @@ AL_S32 main(void)
             focus_plot(ui_read(UI_LENS_POS) & 0x3fffu,
                        ui_read(UI_FOCUS_METRIC), ui_read(UI_LENS_STAT));
             max3421e_diag_report();
+            touchscreen_handle(&ui);
+            /* The FPGA refreshes the DS3231 once per second. Keep the latest
+             * APB snapshot available to the MCU without adding serial traffic
+             * to the touch-report capture stream. */
+            {
+                uint32_t before = ui_read(UI_RTC_STATUS);
+                uint32_t t0 = ui_read(UI_RTC_TIME0);
+                uint32_t t1 = ui_read(UI_RTC_TIME1);
+                uint32_t after = ui_read(UI_RTC_STATUS);
+                g_rtc_status = after;
+                /* Snapshot count guards the APB reads against a refresh. */
+                if((after & (1u << 1)) && (before >> 16) == (after >> 16)) {
+                    g_rtc_time0 = t0;
+                    g_rtc_time1 = t1;
+                }
+            }
             /* Keep the VCM bus active for measurement and recovery. An error
              * state retries the required active-mode/position sequence; an
              * initialized idle lens performs the 0x84/0x85 ADC read pair. */

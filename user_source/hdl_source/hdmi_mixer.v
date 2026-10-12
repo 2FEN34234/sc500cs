@@ -1,5 +1,7 @@
 `include "video_params.vh"
 
+// Compatibility wrapper: keep the current USB/VCM top-level interface while
+// using the complete image/OSD mixer from lab_hd_1_mipi_hdmi_9.
 module hdmi_mixer #(
     parameter H_OFFSET = 128,
     parameter V_OFFSET = 60,
@@ -9,131 +11,118 @@ module hdmi_mixer #(
 )(
     input wire        I_clk,
     input wire        I_rst_n,
-
     input wire        I_video_vsync,
     input wire        I_video_hsync,
     input wire        I_video_de,
     input wire        I_video_user,
     input wire        I_video_last,
+    input wire [3:0]  I_debug_status,
 
-    input wire[3:0]   I_debug_status,
+    // Runtime display/recognition controls from the _9 menu controller.
+    input wire [2:0]  I_dbg_mode,
+    input wire [2:0]  I_dbg_step,
+    input wire [2:0]  I_dbg_effect,
+    input wire        I_dbg_awb_off,
+    input wire        I_recog_mode,
+    input wire        I_logo_enable,
+    input wire [1:0]  I_motion_target,
+    input wire [7:0]  I_dbg_sat_pre, I_dbg_sat_post,
+    input wire [7:0]  I_dbg_mean_r, I_dbg_mean_g, I_dbg_mean_b, I_dbg_min_r,
+    input wire [7:0]  I_dbg_noise, I_dbg_mean_y,
+    input wire        I_shape_valid,
+    input wire [2:0]  I_shape_type,
+    input wire [11:0] I_shape_x0, I_shape_y0, I_shape_x1, I_shape_y1,
+    input wire        I_motion_valid,
+    input wire [15:0] I_motion_count,
+    input wire [2:0]  I_motion_tvalid,
+    input wire [11:0] I_motion_x0_0, I_motion_y0_0, I_motion_x1_0, I_motion_y1_0,
+    input wire [11:0] I_motion_x0_1, I_motion_y0_1, I_motion_x1_1, I_motion_y1_1,
+    input wire [11:0] I_motion_x0_2, I_motion_y0_2, I_motion_x1_2, I_motion_y1_2,
+    input wire        I_color_valid,
+    input wire [2:0]  I_color_code,
+    input wire [15:0] I_color_count,
+    input wire [11:0] I_color_x0, I_color_y0, I_color_x1, I_color_y1,
+    input wire        I_track_new, I_track_valid,
+    input wire [1:0]  I_track_state, I_track_dx, I_track_dy, I_track_lx, I_track_ly,
+    input wire [11:0] I_track_x0, I_track_y0, I_track_x1, I_track_y1, I_track_cx, I_track_cy,
+    input wire signed [12:0] I_track_ex, I_track_ey,
+    input wire [6:0]  I_track_area,
 
     output wire       O_video_rd_en,
-    input wire[23:0]  I_video_rd_data,
-
-    output reg        O_hdmi_vsync,
-    output reg        O_hdmi_hsync,
-    output reg        O_hdmi_de,
-    output reg[23:0]  O_hdmi_data
+    input wire [23:0] I_video_rd_data,
+    output wire       O_hdmi_vsync,
+    output wire       O_hdmi_hsync,
+    output wire       O_hdmi_de,
+    output wire [23:0] O_hdmi_data
 );
 
-    reg        S_video_vsync_1d;
-    reg        S_video_vsync_2d;
-    reg        S_video_hsync_1d;
-    reg        S_video_hsync_2d;
-    reg        S_video_de_1d;
-    reg        S_video_de_2d;
-    reg [11:0] S_x;
-
-    assign O_video_rd_en = I_video_de;
-
-    // Count pixels in the same delayed active-video domain used by O_hdmi_de.
-    // Resetting from the undelayed I_video_last made the final pixels of every
-    // line reuse x=0, which appeared as a red stripe on the right edge.
-    always @(posedge I_clk or negedge I_rst_n) begin
-        if(!I_rst_n)
-            S_x <= 12'd0;
-        else if(!S_video_de_2d)
-            S_x <= 12'd0;
-        else
-            S_x <= S_x + 12'd1;
-    end
-
-    always @(posedge I_clk or negedge I_rst_n) begin
-        if(!I_rst_n) begin
-            S_video_vsync_1d <= 1'b0;
-            S_video_vsync_2d <= 1'b0;
-            S_video_hsync_1d <= 1'b0;
-            S_video_hsync_2d <= 1'b0;
-            S_video_de_1d    <= 1'b0;
-            S_video_de_2d    <= 1'b0;
-            O_hdmi_vsync     <= 1'b0;
-            O_hdmi_hsync     <= 1'b0;
-            O_hdmi_de        <= 1'b0;
-            O_hdmi_data      <= 24'd0;
-        end
-        else begin
-            S_video_vsync_1d <= I_video_vsync;
-            S_video_vsync_2d <= S_video_vsync_1d;
-            O_hdmi_vsync     <= S_video_vsync_2d;
-
-            S_video_hsync_1d <= I_video_hsync;
-            S_video_hsync_2d <= S_video_hsync_1d;
-            O_hdmi_hsync     <= S_video_hsync_2d;
-
-            S_video_de_1d    <= I_video_de;
-            S_video_de_2d    <= S_video_de_1d;
-            O_hdmi_de        <= S_video_de_2d;
-
-            if(DEBUG_MODE == 1) begin
-                if(S_video_de_2d) begin
-                    if(S_x < ((IMG_WIDTH*1)/8))
-                        O_hdmi_data <= 24'hff0000;
-                    else if(S_x < ((IMG_WIDTH*2)/8))
-                        O_hdmi_data <= 24'h00ff00;
-                    else if(S_x < ((IMG_WIDTH*3)/8))
-                        O_hdmi_data <= 24'h0000ff;
-                    else if(S_x < ((IMG_WIDTH*4)/8))
-                        O_hdmi_data <= 24'hffff00;
-                    else if(S_x < ((IMG_WIDTH*5)/8))
-                        O_hdmi_data <= 24'h00ffff;
-                    else if(S_x < ((IMG_WIDTH*6)/8))
-                        O_hdmi_data <= 24'hff00ff;
-                    else if(S_x < ((IMG_WIDTH*7)/8))
-                        O_hdmi_data <= 24'hffffff;
-                    else
-                        O_hdmi_data <= 24'h808080;
-                end
-                else begin
-                    O_hdmi_data <= 24'd0;
-                end
-            end
-            else if(DEBUG_MODE == 2) begin
-                if(S_video_de_2d) begin
-                    case (I_debug_status)
-                        4'b0000: O_hdmi_data <= 24'h000000;
-                        4'b0001: O_hdmi_data <= 24'hff0000;
-                        4'b0011: O_hdmi_data <= 24'hffff00;
-                        4'b0111: O_hdmi_data <= 24'h00ff00;
-                        4'b1111: O_hdmi_data <= I_video_rd_data;
-                        default: O_hdmi_data <= 24'h0000ff;
-                    endcase
-                end
-                else begin
-                    O_hdmi_data <= 24'd0;
-                end
-            end
-            else if(DEBUG_MODE == 3) begin
-                if(S_video_de_2d) begin
-                    if(S_x < (IMG_WIDTH/4))
-                        O_hdmi_data <= I_debug_status[0] ? 24'hff8000 : 24'h201000;
-                    else if(S_x < (IMG_WIDTH/2))
-                        O_hdmi_data <= I_debug_status[1] ? 24'hffff00 : 24'h202000;
-                    else if(S_x < ((IMG_WIDTH*3)/4))
-                        O_hdmi_data <= I_debug_status[2] ? 24'hff0000 : 24'h200000;
-                    else
-                        O_hdmi_data <= I_debug_status[3] ? 24'h00ffff : 24'h002020;
-                end
-                else begin
-                    O_hdmi_data <= 24'd0;
-                end
-            end
-            else begin
-                // video_out 在读使能后一拍给出像素；本级再寄存一拍，
-                // 正好与从 I_video_de 到 O_hdmi_de 的两拍延时对齐。
-                O_hdmi_data <= I_video_rd_data;
-            end
-        end
-    end
-
+    hdmi_mixer_image9 #(
+        .H_OFFSET   (H_OFFSET),
+        .V_OFFSET   (V_OFFSET),
+        .IMG_WIDTH  (IMG_WIDTH),
+        .IMG_HEIGHT (IMG_HEIGHT),
+        .DEBUG_MODE (DEBUG_MODE)
+    ) u_image9 (
+        .I_clk           (I_clk),
+        .I_rst_n         (I_rst_n),
+        .I_video_vsync   (I_video_vsync),
+        .I_video_hsync   (I_video_hsync),
+        .I_video_de      (I_video_de),
+        .I_video_user    (I_video_user),
+        .I_video_last    (I_video_last),
+        .I_debug_status  (I_debug_status),
+        .I_dbg_mode      (I_dbg_mode),
+        .I_dbg_step      (I_dbg_step),
+        .I_dbg_effect    (I_dbg_effect),
+        .I_dbg_awb_off   (I_dbg_awb_off),
+        .I_recog_mode    (I_recog_mode),
+        .I_logo_enable   (I_logo_enable),
+        .I_motion_target (I_motion_target),
+        .I_dbg_sat_pre   (I_dbg_sat_pre),
+        .I_dbg_sat_post  (I_dbg_sat_post),
+        .I_dbg_mean_r    (I_dbg_mean_r),
+        .I_dbg_mean_g    (I_dbg_mean_g),
+        .I_dbg_mean_b    (I_dbg_mean_b),
+        .I_dbg_min_r     (I_dbg_min_r),
+        .I_dbg_noise     (I_dbg_noise),
+        .I_dbg_mean_y    (I_dbg_mean_y),
+        .I_shape_valid   (I_shape_valid),
+        .I_shape_type    (I_shape_type),
+        .I_shape_x0      (I_shape_x0),
+        .I_shape_y0      (I_shape_y0),
+        .I_shape_x1      (I_shape_x1),
+        .I_shape_y1      (I_shape_y1),
+        .I_motion_valid  (I_motion_valid),
+        .I_motion_count  (I_motion_count),
+        .I_motion_tvalid (I_motion_tvalid),
+        .I_motion_x0_0   (I_motion_x0_0), .I_motion_y0_0 (I_motion_y0_0),
+        .I_motion_x1_0   (I_motion_x1_0), .I_motion_y1_0 (I_motion_y1_0),
+        .I_motion_x0_1   (I_motion_x0_1), .I_motion_y0_1 (I_motion_y0_1),
+        .I_motion_x1_1   (I_motion_x1_1), .I_motion_y1_1 (I_motion_y1_1),
+        .I_motion_x0_2   (I_motion_x0_2), .I_motion_y0_2 (I_motion_y0_2),
+        .I_motion_x1_2   (I_motion_x1_2), .I_motion_y1_2 (I_motion_y1_2),
+        .I_color_valid   (I_color_valid),
+        .I_color_code    (I_color_code),
+        .I_color_count   (I_color_count),
+        .I_color_x0      (I_color_x0), .I_color_y0 (I_color_y0),
+        .I_color_x1      (I_color_x1), .I_color_y1 (I_color_y1),
+        .I_track_new     (I_track_new),
+        .I_track_valid   (I_track_valid),
+        .I_track_state   (I_track_state),
+        .I_track_dx      (I_track_dx), .I_track_dy (I_track_dy),
+        .I_track_lx      (I_track_lx), .I_track_ly (I_track_ly),
+        .I_track_x0      (I_track_x0), .I_track_y0 (I_track_y0),
+        .I_track_x1      (I_track_x1), .I_track_y1 (I_track_y1),
+        .I_track_cx      (I_track_cx), .I_track_cy (I_track_cy),
+        .I_track_ex      (I_track_ex), .I_track_ey (I_track_ey),
+        .I_track_area    (I_track_area),
+        .O_video_rd_en   (O_video_rd_en),
+        .I_video_rd_data (I_video_rd_data),
+        .O_hdmi_vsync    (O_hdmi_vsync),
+        .O_hdmi_hsync    (O_hdmi_hsync),
+        .O_hdmi_de       (O_hdmi_de),
+        .O_hdmi_data     (O_hdmi_data),
+        .O_base_data     (),
+        .O_overlay_valid ()
+    );
 endmodule

@@ -11,13 +11,14 @@ module lens_test_slave(inout wire scl, sda);
     reg stretch_enable=0, stretched=0;
     assign scl=(stretch_low || stuck_scl) ? 1'b0 : 1'bz;
     assign sda=(drive_low || stuck_sda) ? 1'b0 : 1'bz;
-    always @(negedge sda) if(scl===1'b1) begin
+    // Fault injection is an interrupted transfer, not a new slave command.
+    always @(negedge sda) if(scl===1'b1 && !stuck_sda && !absent) begin
         if(!active) total_bytes=0;
         active=1; bits=0; byte_in_segment=0; reading=0; read_finished=0;
         starts=starts+1;
     end
     always @(posedge sda) if(scl===1'b1 && active) begin active=0; stops=stops+1; end
-    always @(posedge scl) if(active && !absent) begin
+    always @(posedge scl) if(active && !absent && !stuck_sda) begin
         if(reading) begin
             if(bits<8) bits=bits+1;
             else if(!read_finished) begin
@@ -42,7 +43,7 @@ module lens_test_slave(inout wire scl, sda);
         end
     end
     always @(negedge scl) begin
-        if(!active || absent) drive_low=0;
+        if(!active || absent || stuck_sda) drive_low=0;
         else if(reading) drive_low=(bits<8) ? !value[7-bits] : 0;
         else drive_low=(bits==8) && (total_bytes+1!=nack_at);
     end
@@ -87,7 +88,7 @@ module tb_lens_i2c_diag;
         if(slave.observed[index]!==expected)
             $fatal(1,"byte[%0d]=%h expected %h",index,slave.observed[index],expected);
     endtask
-    integer before_count;
+    integer before_count, before_recovery;
     initial begin
         repeat(10) @(negedge clk); rst_n=1; cfg=1;
         wait_idle();
@@ -127,18 +128,104 @@ module tb_lens_i2c_diag;
         slave.absent=0; request_retry();
         if(error || !initialized || !adc[16]) $fatal(1,"Retry failed");
         $display("PASS: missing slave => ADDRESS NACK; explicit retry recovers without FPGA reset");
+        before_recovery=bus_state[31:16];
         slave.stuck_sda=1; request_retry();
         if(!error || diag[23:20]!=3 || adc[16]) $fatal(1,"SDA low not diagnosed %h",diag);
+        if(bus_state[31:16]!=before_recovery+1 || bus_state[3:2]!=3)
+            $fatal(1,"SDA timeout must attempt recovery once, then release both pads");
         slave.stuck_sda=0; slave.active=0; request_retry();
         if(error) $fatal(1,"SDA release retry failed");
+        before_recovery=bus_state[31:16];
         slave.stuck_scl=1; request_retry();
         if(!error || diag[23:20]!=2 || adc[16]) $fatal(1,"SCL low not diagnosed %h",diag);
+        if(bus_state[31:16]!=before_recovery || bus_state[3:2]!=3)
+            $fatal(1,"SCL timeout must release pads without attempting SDA recovery");
         slave.stuck_scl=0; slave.active=0; request_retry();
         if(error) $fatal(1,"SCL release retry failed");
         $display("PASS: stuck SDA / stuck SCL timeout and release/retry");
         $finish;
     end
     initial begin #100000000; $fatal(1,"Global timeout"); end
+endmodule
+
+// Exercise recovery through the actual pads, including a complete ADC read
+// after a stranded slave releases SDA. Do not use internal FSM state.
+module tb_lens_i2c_recovery;
+    reg clk=0; always #10 clk=~clk;
+    reg rst_n=0,start=0;
+    tri1 scl,sda;
+    wire done;
+    wire [2:0] ack;
+    wire [3:0] fault;
+    wire [7:0] nack,data;
+    wire [31:0] bus_state;
+    integer held_edges=0, release_after=0, previous_attempts, n;
+    lens_i2c_master #(.PERIOD_CYCLES(500),.TIMEOUT_CYCLES(5000)) dut(
+        .clk(clk),.rst_n(rst_n),.start(start),.read_reg(1'b1),
+        .reg_addr(8'h84),.reg_value(8'h00),.scl(scl),.sda(sda),
+        .done(done),.ack_mask(ack),.fault(fault),.nack_byte(nack),
+        .rx_data(data),.bus_state(bus_state)
+    );
+    lens_test_slave slave(scl,sda);
+    always @(posedge scl) if(rst_n && slave.stuck_sda) begin
+        held_edges=held_edges+1;
+        if(release_after!=0 && held_edges==release_after) begin
+            #100; slave.stuck_sda=0;
+        end
+    end
+    task run;
+        integer i;
+        begin : transaction
+            repeat(5) @(negedge clk);
+            start=1;
+            @(negedge clk); start=0;
+            for(i=0;i<60000;i=i+1) begin
+                @(negedge clk);
+                if(done) disable transaction;
+            end
+            $fatal(1,"Recovery transaction did not finish within 1.2 ms");
+        end
+    endtask
+    initial begin
+        repeat(10) @(negedge clk); rst_n=1;
+        // All possible release points through the nine-clock clear sequence.
+        for(n=1;n<=9;n=n+1) begin
+            held_edges=0; release_after=n; previous_attempts=bus_state[31:16];
+            slave.stuck_sda=1;
+            run();
+            if(fault!=0 || ack!=7 || data!=8'ha6 || nack!=0)
+                $fatal(1,"SDA release after %0d pulses failed: fault=%0d ack=%h data=%h",n,fault,ack,data);
+            if(held_edges!=n || bus_state[31:16]!=previous_attempts+1 || bus_state[3:0]!=15)
+                $fatal(1,"Recovery count/pads incorrect at release %0d: %h",n,bus_state);
+        end
+        $display("PASS: SDA releases on pulses 1..9; same request completes ADC read A6");
+        held_edges=0; release_after=0; slave.stuck_sda=1;
+        previous_attempts=bus_state[31:16]; run();
+        // Nine clearing clocks plus the SCL rise used to attempt STOP.
+        if(fault!=3 || ack!=0 || nack!=0 || held_edges!=10 ||
+           bus_state[31:16]!=previous_attempts+1 || bus_state[3:2]!=3)
+            $fatal(1,"Permanent SDA fault must terminate after one clear: fault=%0d edges=%0d bus=%h",fault,held_edges,bus_state);
+        slave.stuck_sda=0; run();
+        if(fault || data!=8'ha6 || ack!=7) $fatal(1,"Retry after permanent SDA fault failed");
+        $display("PASS: permanent SDA low terminates, releases pads; later retry succeeds");
+        previous_attempts=bus_state[31:16];
+        slave.stuck_scl=1; run();
+        if(fault!=2 || bus_state[31:16]!=previous_attempts || bus_state[3:2]!=3)
+            $fatal(1,"Permanent SCL low must time out without SDA recovery");
+        slave.stuck_scl=0; run();
+        if(fault || data!=8'ha6 || ack!=7) $fatal(1,"Retry after SCL fault failed");
+        $display("PASS: permanent SCL low terminates; later retry succeeds");
+        previous_attempts=bus_state[31:16];
+        fork
+            begin slave.stuck_sda=1; #40000; slave.stuck_sda=0; end
+            run();
+        join
+        if(fault || data!=8'ha6 || bus_state[31:16]!=previous_attempts)
+            $fatal(1,"Brief SDA low should wait for bus free without recovery");
+        $display("PASS: temporary busy bus does not trigger unnecessary clearing");
+        $finish;
+    end
+    initial begin #20000000; $fatal(1,"Global recovery test timeout"); end
 endmodule
 
 module tb_lens_i2c_master #(parameter integer PERIOD=500);

@@ -82,10 +82,13 @@ module lens_i2c_ctrl #(
 endmodule
 
 // Single input-clock master: open drain SCL/SDA, pad synchronizers,
-// bounded clock-stretch wait, immediate STOP on NACK. No blind bus-clear pulses.
+// Bounded clock-stretch wait, immediate STOP on NACK. If idle SDA stays low,
+// clear an interrupted slave read with at most nine open-drain SCL pulses.
 module lens_i2c_master #(
     parameter integer PERIOD_CYCLES=500,
-    parameter integer TIMEOUT_CYCLES=100000 // 2 ms at 50 MHz
+    parameter integer TIMEOUT_CYCLES=100000, // 2 ms at 50 MHz
+    // Default remains the VCM address; DS3231 uses 7-bit address 0x68.
+    parameter [6:0] SLAVE_ADDR=7'h0c
 )(
     input wire clk, rst_n, start, read_reg,
     input wire [7:0] reg_addr, reg_value,
@@ -103,7 +106,8 @@ module lens_i2c_master #(
         RS_LOW=9, RS_RISE=10, RS_HIGH=11, RS_HOLD=12,
         RX_LOW=13, RX_RISE=14, RX_HIGH=15,
         NACK_LOW=16, NACK_RISE=17, NACK_HIGH=18,
-        STOP_LOW=19, STOP_RISE=20, STOP_HIGH=21, STOP_FREE=22, LOW_HOLD=23;
+        STOP_LOW=19, STOP_RISE=20, STOP_HIGH=21, STOP_FREE=22, LOW_HOLD=23,
+        CLEAR_LOW=24, CLEAR_RISE=25, CLEAR_HIGH=26;
     reg [4:0] state, after_hold;
     reg next_sda_low;
     reg scl_low, sda_low;
@@ -113,10 +117,13 @@ module lens_i2c_master #(
     reg [2:0] bit_index;
     reg [1:0] byte_index;
     reg reading, ack_seen;
+    reg clear_attempted, resume_after_stop;
+    reg [3:0] clear_pulses;
+    reg [15:0] recovery_attempts;
     assign scl=scl_low ? 1'b0 : 1'bz;
     assign sda=sda_low ? 1'b0 : 1'bz;
-    // [0/1] SCL/SDA pad input; [2/3] master releases SCL/SDA; [12:8] state.
-    assign bus_state={19'd0,state,4'd0,!sda_low,!scl_low,sda_sync,scl_sync};
+    // [31:16] recovery attempts; [12:8] state; [3:0] releases and pad inputs.
+    assign bus_state={recovery_attempts,3'd0,state,4'd0,!sda_low,!scl_low,sda_sync,scl_sync};
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
             scl_meta<=1; scl_sync<=1; sda_meta<=1; sda_sync<=1;
@@ -142,23 +149,40 @@ module lens_i2c_master #(
             done<=0; ack_mask<=0; fault<=0; nack_byte<=0; rx_data<=0;
             shift<=0; address_latched<=0; value_latched<=0; bit_index<=7;
             byte_index<=0; reading<=0; ack_seen<=0;
+            clear_attempted<=0; resume_after_stop<=0;
+            clear_pulses<=0; recovery_attempts<=0;
         end else begin
             done<=0;
             // Watchdog resets on each state transition. A stuck bus releases
             // both master outputs and terminates rather than hanging APB/UI.
             if(state!=IDLE && watchdog>=TIMEOUT_CYCLES-1) begin
-                if(fault==0) fault<=!scl_sync ? 4'd2 : 4'd3;
-                scl_low<=0; sda_low<=0; done<=1; state<=IDLE;
-                watchdog<=0; ticks<=0;
+                if(state==FREE && scl_sync && !sda_sync && !clear_attempted) begin
+                    // Recovery is restricted to the otherwise idle, dedicated
+                    // lens bus. SDA is never driven high. Retry once after STOP.
+                    clear_attempted<=1; clear_pulses<=0;
+                    if(recovery_attempts!=16'hffff)
+                        recovery_attempts<=recovery_attempts+1'b1;
+                    scl_low<=1; sda_low<=0; state<=CLEAR_LOW;
+                    watchdog<=0; ticks<=0;
+                end else begin
+                    if(fault==0) fault<=!scl_sync ? 4'd2 : 4'd3;
+                    scl_low<=0; sda_low<=0; done<=1; state<=IDLE;
+                    watchdog<=0; ticks<=0; resume_after_stop<=0;
+                end
             end else begin
                 if(state!=IDLE) watchdog<=watchdog+1'b1;
                 case(state)
                     IDLE: if(start) begin
                         reading<=read_reg; address_latched<=reg_addr;
-                        value_latched<=reg_value; shift<=8'h18;
+                        value_latched<=reg_value; shift<={SLAVE_ADDR,1'b0};
                         byte_index<=0; bit_index<=7;
                         ack_mask<=0; fault<=0; nack_byte<=0; rx_data<=0;
-                        scl_low<=0; sda_low<=0; ticks<=0; watchdog<=0; state<=FREE;
+                        clear_attempted<=0; resume_after_stop<=0; clear_pulses<=0;
+                        scl_low<=0; sda_low<=0; ticks<=0; watchdog<=0;
+                        // Qualify both pad inputs in FREE. Only a persistent
+                        // SDA-low/SCL-high condition starts bus recovery;
+                        // a slave holding SCL low is allowed its stretch time.
+                        state<=FREE;
                     end
                     LOW_HOLD: if(ticks>=LOW_TICKS/4-1) begin
                         sda_low<=next_sda_low; ticks<=ticks+1'b1;
@@ -169,6 +193,21 @@ module lens_i2c_master #(
                             sda_low<=1; ticks<=0; watchdog<=0; state<=START_HOLD;
                         end else ticks<=ticks+1'b1;
                     end else ticks<=0;
+                    CLEAR_LOW: if(ticks>=LOW_TICKS-1) begin
+                        scl_low<=0; ticks<=0; watchdog<=0; state<=CLEAR_RISE;
+                    end else ticks<=ticks+1'b1;
+                    CLEAR_RISE: if(scl_sync) begin
+                        ticks<=0; watchdog<=0; state<=CLEAR_HIGH;
+                    end
+                    CLEAR_HIGH: if(ticks>=HIGH_TICKS-1) begin
+                        if(sda_sync || clear_pulses==4'd8) begin
+                            resume_after_stop<=1;
+                            lower_bus(1,STOP_LOW);
+                        end else begin
+                            clear_pulses<=clear_pulses+1'b1;
+                            scl_low<=1; ticks<=0; watchdog<=0; state<=CLEAR_LOW;
+                        end
+                    end else ticks<=ticks+1'b1;
                     START_HOLD, RS_HOLD: if(ticks>=HIGH_TICKS-1) begin
                         lower_bus(!shift[7],BIT_LOW); bit_index<=7;
                     end else ticks<=ticks+1'b1;
@@ -199,7 +238,7 @@ module lens_i2c_master #(
                                     if(reading) begin bit_index<=7; lower_bus(0,RX_LOW); end
                                     else begin lower_bus(1,STOP_LOW); end
                                 end else if(byte_index==1 && reading) begin
-                                    byte_index<=2; shift<=8'h19; lower_bus(0,RS_LOW);
+                                    byte_index<=2; shift<={SLAVE_ADDR,1'b1}; lower_bus(0,RS_LOW);
                                 end else begin
                                     byte_index<=byte_index+1'b1; bit_index<=7;
                                     shift<=byte_index==0 ? address_latched : value_latched;
@@ -242,7 +281,12 @@ module lens_i2c_master #(
                     end else ticks<=ticks+1'b1;
                     STOP_FREE: if(scl_sync && sda_sync) begin
                         if(ticks>=LOW_TICKS-1) begin
-                            ticks<=0; watchdog<=0; done<=1; state<=IDLE;
+                            ticks<=0; watchdog<=0;
+                            if(resume_after_stop) begin
+                                resume_after_stop<=0; state<=FREE;
+                            end else begin
+                                done<=1; state<=IDLE;
+                            end
                         end else ticks<=ticks+1'b1;
                     end else ticks<=0;
                     default: begin scl_low<=0; sda_low<=0; state<=IDLE; end

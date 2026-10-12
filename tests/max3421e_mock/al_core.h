@@ -9,4 +9,5 @@
 uint32_t mock_reg_read(uint32_t address);
 #define AL_REG32_READ(address) mock_reg_read((uint32_t)(address))
 void AlSys_MDelay(uint64_t ms);
+void AlSys_UDelay(uint64_t us);
 #endif

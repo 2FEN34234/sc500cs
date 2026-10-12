@@ -4,9 +4,11 @@
 module mcu_ui_apb_regs #(
     parameter [15:0] AE_MIN  = 16'd3,
     parameter [15:0] AE_MAX  = 16'd5990,
-    parameter [15:0] AE_INIT = 16'd2246,
+    // VTS=3000, so 5990 is the highest safe exposure (2*VTS-10).
+    parameter [15:0] AE_INIT = 16'd5990,
     parameter [15:0] AG_MIN  = 16'd16,
     parameter [15:0] AG_MAX  = 16'd143,
+    // Match the _9 exposure-priority profile: user value 80 (4.13x).
     parameter [15:0] AG_INIT = 16'd80,
     // Keep the APB side inside the normal hobby-servo range.  The PWM block
     // applies the same limits, so an early/invalid MCU write cannot create an
@@ -36,6 +38,13 @@ module mcu_ui_apb_regs #(
     output reg  [2:0]  O_menu_index,
     output reg  [15:0] O_exposure,
     output reg  [15:0] O_gain,
+    // Image controls written by the MCU menu.  These replace the old
+    // independent FPGA dbg_ctrl key path.
+    output reg  [2:0]  O_image_step,
+    output reg  [2:0]  O_image_effect,
+    output reg  [1:0]  O_image_target,
+    output reg         O_image_logo_enable,
+    output reg         O_image_track_toggle,
     input  wire        I_lens_busy,
     input  wire        I_lens_init_done,
     input  wire        I_lens_error,
@@ -43,6 +52,7 @@ module mcu_ui_apb_regs #(
     input  wire [31:0] I_lens_tx_count,
     input wire [31:0] I_lens_adc_raw, I_lens_adc_count, I_lens_bus_state,
     input  wire [31:0] I_focus_metric,
+    input  wire [31:0] I_rtc_time0, I_rtc_time1, I_rtc_status,
     output reg         O_lens_cmd,
     output reg         O_lens_retry, O_lens_read_adc,
     output reg  [13:0] O_lens_position,
@@ -98,6 +108,11 @@ module mcu_ui_apb_regs #(
             O_menu_index  <= 3'd0;
             O_exposure    <= AE_INIT;
             O_gain        <= AG_INIT;
+            O_image_step  <= 3'd1;
+            O_image_effect <= 3'd0;
+            O_image_target <= 2'd0;
+            O_image_logo_enable <= 1'b1;
+            O_image_track_toggle <= 1'b0;
             O_lens_cmd    <= 1'b0;
             O_lens_retry <= 0; O_lens_read_adc <= 0;
             O_lens_position <= 14'd8192;
@@ -120,7 +135,7 @@ module mcu_ui_apb_regs #(
                         O_edit_enable <= I_pwdata[1];
                         O_info_enable <= I_pwdata[2];
                     end
-                    8'h0c: O_menu_index <= (I_pwdata[2:0] > 3'd5) ? 3'd5 : I_pwdata[2:0];
+                    8'h0c: O_menu_index <= (I_pwdata[2:0] > 3'd6) ? 3'd6 : I_pwdata[2:0];
                     8'h10: O_exposure <= (I_pwdata[15:0] < AE_MIN) ? AE_MIN :
                                            ((I_pwdata[15:0] > AE_MAX) ? AE_MAX : I_pwdata[15:0]);
                     8'h14: O_gain <= (I_pwdata[15:0] < AG_MIN) ? AG_MIN :
@@ -144,6 +159,18 @@ module mcu_ui_apb_regs #(
                     8'h54: if(I_pstrobe[0])
                         O_servo_tilt_us <= (I_pwdata[15:0] < SERVO_MIN) ? SERVO_MIN :
                                            ((I_pwdata[15:0] > SERVO_MAX) ? SERVO_MAX : I_pwdata[15:0]);
+                    // IMAGE_CTRL (0x58): step 1..5 in bits 2:0, effect in
+                    // bits 5:3, motion target in bits 7:6, logo in bit 8,
+                    // and a tracker reacquire toggle request in bit 9.
+                    8'h58: if(I_pstrobe[0]) begin
+                        O_image_step <= (I_pwdata[2:0] < 3'd1) ? 3'd1 :
+                                        ((I_pwdata[2:0] > 3'd5) ? 3'd5 : I_pwdata[2:0]);
+                        O_image_effect <= (I_pwdata[5:3] > 3'd5) ? 3'd5 : I_pwdata[5:3];
+                        O_image_target <= (I_pwdata[7:6] > 2'd2) ? 2'd2 : I_pwdata[7:6];
+                        O_image_logo_enable <= I_pwdata[8];
+                        if(I_pwdata[9])
+                            O_image_track_toggle <= ~O_image_track_toggle;
+                    end
                     default: begin end
                 endcase
             end
@@ -175,8 +202,16 @@ module mcu_ui_apb_regs #(
                 8'h4c: O_prdata = I_lens_bus_state;
                 8'h50: O_prdata = {16'd0, O_servo_pan_us};
                 8'h54: O_prdata = {16'd0, O_servo_tilt_us};
+                8'h58: O_prdata = {22'd0, O_image_track_toggle,
+                                   O_image_logo_enable, O_image_target,
+                                   O_image_effect, O_image_step};
+                8'h5c: O_prdata = 32'h20261011; // Firmware/bitstream pairing.
+                8'h60: O_prdata = I_rtc_time0;
+                8'h64: O_prdata = I_rtc_time1;
+                8'h68: O_prdata = I_rtc_status;
                 default: O_prdata = 32'd0;
             endcase
         end
     end
 endmodule
+

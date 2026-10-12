@@ -51,10 +51,12 @@ output wire [15:0] O_ag
 // HDMI 输出时序仍为 1920x1080@30；按键 0/1 每次减小/增加 120（约 1 ms）。
 localparam [15:0] AE_MIN         = 16'd3;
 localparam [15:0] AE_MAX         = 16'd5990;
-localparam [15:0] AE_INIT        = 16'd2246;
+// VTS is 3000 in uics500reg.v, so 5990 is the highest safe exposure
+// (2*VTS-10).  Use the brighter end of the available range at startup.
+localparam [15:0] AE_INIT        = 16'd5990;
 localparam [15:0] AE_STEP_FINE   = 16'd120;
 // SC500 模拟增益范围为 1.0x..15.75x；索引 16..143 对应查表输入 0..127。
-// 按键 2/3 每次减小/增加一级模拟增益，上电初始增益保持不变。
+// 按键 2/3 每次减小/增加一级模拟增益，上电默认使用 _9 的 4.13x 档。
 localparam [15:0] AG_MIN         = 16'd16;
 localparam [15:0] AG_MAX         = 16'd143;
 localparam [15:0] AG_INIT        = 16'd80;

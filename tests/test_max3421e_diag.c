@@ -9,7 +9,7 @@
 
 static volatile uint32_t *board;
 static uint8_t regs[32], rx_value;
-static unsigned direction, selected, byte_count, command, rx_pending, rx_done;
+static unsigned direction, selected, byte_count, command, rx_pending, rx_done, tx_done;
 static unsigned calls, init_count, reset_pulses;
 static unsigned cs_id, cs_default, clock_div;
 static int fault;
@@ -28,6 +28,10 @@ void AlSys_MDelay(uint64_t ms)
         board[0x24/4] &= ~1u;
     }
 }
+void AlSys_UDelay(uint64_t us)
+{
+    (void)us;
+}
 int AlQspi_Dev_Init(AL_QSPI_DevStruct *spi, unsigned id, AL_QSPI_InitStruct *cfg)
 {
     assert(id == 1 && cfg->CPHA == 0 && cfg->CPOL == 0 && cfg->FrameLen == 8);
@@ -45,7 +49,8 @@ uint32_t AlQspi_ll_GetStatus(uint32_t base)
     if (fault == SPI_STUCK) return (1u << AL_QSPI_TX_FIFO_FULL);
     return (1u << AL_QSPI_TX_FIFO_EMPTY) |
            (rx_pending ? 0 : 1u << AL_QSPI_RX_FIFO_EMPTY) |
-           (rx_done ? 1u << AL_QSPI_RX_DONE : 0);
+           (rx_done ? 1u << AL_QSPI_RX_DONE : 0) |
+           (tx_done ? 1u << AL_QSPI_TX_DONE : 0);
 }
 void AlQspi_ll_SetCsMode(uint32_t base, unsigned mode)
 {
@@ -58,6 +63,7 @@ void AlQspi_ll_SendData(uint32_t base, uint32_t value)
 {
     (void)base;
     assert(selected && board[0x20/4] == 3 && cs_id == AL_QSPI_CS_0);
+    tx_done = 1;
     if (!byte_count++) { assert(direction == AL_QSPI_TX); command = value; return; }
     if (command & 2) {
         assert(direction == AL_QSPI_TX);
@@ -71,10 +77,16 @@ void AlQspi_ll_SendData(uint32_t base, uint32_t value)
     }
 }
 uint32_t AlQspi_ll_RecvData(uint32_t base) { (void)base; assert(rx_pending); rx_pending = 0; return rx_value; }
-void AlQspi_ll_ClrStatus(uint32_t base, unsigned bit) { (void)base; if (bit == AL_QSPI_RX_DONE) rx_done = 0; }
+void AlQspi_ll_ClrStatus(uint32_t base, unsigned bit)
+{
+    (void)base;
+    if (bit & (1u << AL_QSPI_RX_DONE)) rx_done = 0;
+    if (bit & (1u << AL_QSPI_TX_DONE)) tx_done = 0;
+}
 #define IGNORE_SETTER(name) void name(uint32_t base, unsigned value) { (void)base; (void)value; }
 IGNORE_SETTER(AlQspi_ll_SetTxSize)
 IGNORE_SETTER(AlQspi_ll_SetRxSize)
+IGNORE_SETTER(AlQspi_ll_SetRxMark)
 IGNORE_SETTER(AlQspi_ll_SetFlashEn)
 void AlQspi_ll_SetCsDef(uint32_t base, unsigned value) { (void)base; cs_default = value; }
 void AlQspi_ll_SetCsId(uint32_t base, unsigned value) { (void)base; cs_id = value; }
@@ -93,7 +105,7 @@ uint32_t mock_reg_read(uint32_t address)
 
 int main(void)
 {
-    static const int expected[] = {0, -3, -4, -5, -6, -1, -7};
+    static const int expected[] = {0, -3, -4, -5, 0, -1, -7};
     board = VirtualAlloc((void *)0x70000000, 4096, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     assert(board == (void *)0x70000000);
     assert(max3421e_diag_init(0x70000000) == -2);
@@ -101,10 +113,10 @@ int main(void)
     for (fault = NORMAL; fault <= BAD_BOARD_CTRL; ++fault) {
         memset((void *)board, 0, 4096);
         board[0x1c/4] = 0x4d415831;
-        calls = 0; reset_pulses = 0; rx_pending = 0; rx_done = 0; selected = 0;
+        calls = 0; reset_pulses = 0; rx_pending = 0; rx_done = 0; tx_done = 0; selected = 0;
         assert(max3421e_diag_init(0x70000000) == expected[fault]);
         assert(!selected && reset_pulses > 0);
-        assert(board[0x20/4] == (fault == NORMAL ? 3u : 0u));
+        assert(board[0x20/4] == ((fault == NORMAL || fault == BAD_INT) ? 3u : 0u));
         max3421e_diag_report();
     }
     fault = NORMAL; calls = 0;

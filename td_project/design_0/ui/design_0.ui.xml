@@ -2,8 +2,8 @@
 <ipxact:position xmlns:xsi="http" xmlns:ipxact="http" xmlns:anlogic="http" xsi:schemaLocation="http">
     <ipxact:instances>
         <ipxact:instance vendor="anlogic.com" library="ip" name="hdmi_phy_wrapper_0" version="1.0">
-            <ipxact:xPos>-189.167</ipxact:xPos>
-            <ipxact:yPos>-95.8333</ipxact:yPos>
+            <ipxact:xPos>-502.5</ipxact:xPos>
+            <ipxact:yPos>-282.5</ipxact:yPos>
             <ipxact:width>301</ipxact:width>
             <ipxact:height>236</ipxact:height>
             <ipxact:isPin>false</ipxact:isPin>

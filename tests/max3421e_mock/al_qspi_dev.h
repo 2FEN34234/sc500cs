@@ -11,7 +11,8 @@ enum { AL_QSPI_MASTER = 1, AL_QSPI_PROTOCOL_MODE_SINGLE = 0,
        AL_QSPI_CLK_EDGE1 = 0, AL_QSPI_ENDIAN_MSB = 0,
        AL_QSPI_TX = 1, AL_QSPI_RX = 0, AL_QSPI_TX_FIFO_FULL = 4,
        AL_QSPI_TX_FIFO_EMPTY = 11, AL_QSPI_RX_FIFO_EMPTY = 5,
-       AL_QSPI_BUSY = 0, AL_QSPI_DONE = 13, AL_QSPI_RX_DONE = 18 };
+       AL_QSPI_BUSY = 0, AL_QSPI_DONE = 13, AL_QSPI_TX_DONE = 17,
+       AL_QSPI_RX_DONE = 18 };
 typedef struct { uint32_t BaseAddr; } AL_QSPI_DevStruct;
 typedef struct {
     uint32_t SckDiv, DevMode, ProtocolMode, FrameLen, CSMode, CPOL, CPHA, Endian;
@@ -25,6 +26,7 @@ void AlQspi_ll_SetCsMode(uint32_t, unsigned);
 void AlQspi_ll_ClrStatus(uint32_t, unsigned);
 void AlQspi_ll_SetTxSize(uint32_t, unsigned);
 void AlQspi_ll_SetRxSize(uint32_t, unsigned);
+void AlQspi_ll_SetRxMark(uint32_t, unsigned);
 void AlQspi_ll_SetFlashEn(uint32_t, unsigned);
 void AlQspi_ll_SetCsDef(uint32_t, unsigned);
 void AlQspi_ll_SetCsId(uint32_t, unsigned);

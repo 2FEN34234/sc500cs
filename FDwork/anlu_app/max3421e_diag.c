@@ -3,6 +3,16 @@
 #include "al_misc_ll.h"
 #include "max3421e_diag.h"
 
+/* Capture build: suppress diagnostics on USART1; only the touchscreen
+ * interrupt reports below are emitted. Set to 0 when normal diagnostics are
+ * needed again. */
+#define USB_TOUCH_ONLY_SERIAL 1
+#if USB_TOUCH_ONLY_SERIAL
+#define diag_printf(...) ((void)0)
+#else
+#define diag_printf al_printf
+#endif
+
 #define USB_CAP       0x1cu
 #define USB_CTRL      0x20u
 #define USB_STATUS    0x24u
@@ -36,6 +46,9 @@
 #define TOK_OUTHS     0xa0u
 #define HRSL_JSTATUS  0x80u
 #define HRSL_KSTATUS  0x40u
+#define HRSL_RCVTOGRD 0x10u
+#define HCTL_RCVTOG0  0x10u
+#define HCTL_RCVTOG1  0x20u
 #define MODE_HOST     0xc1u
 #define MODE_HOST_SOF 0xc9u
 #define OSCOKIRQ      0x01u
@@ -43,6 +56,8 @@
 #define PWRDOWN       0x10u
 #define PINCTL_VALUE  0x1Au /* Full-duplex MISO, level IRQ, GPXB (official setting). */
 #define SPI_POLL_LIMIT 100000u
+#define HOST_FRAME_WAIT_LIMIT 100u
+#define HID_REPORT_MAX 1024u
 
 static AL_QSPI_DevStruct spi;
 static uint32_t apb_base;
@@ -51,6 +66,23 @@ static int diag_result;
 static uint8_t host_bus_state = 0xffu;
 static uint8_t host_last_hirq;
 static int host_descriptor_done;
+#define HID_MAX_INTERFACES 4u
+typedef struct {
+    uint8_t interface_number;
+    uint8_t endpoint_address;
+    uint8_t max_packet;
+    uint8_t interval;
+    uint16_t report_length;
+    uint8_t rcv_toggle;
+    uint8_t ready;
+    uint8_t report_dumped;
+} HidEndpoint;
+static HidEndpoint hid_endpoints[HID_MAX_INTERFACES];
+static unsigned hid_endpoint_count;
+static uint8_t hid_report_descriptor[HID_REPORT_MAX];
+static TouchEvent touch_event;
+static TouchDecoder touch_decoder;
+static uint8_t touch_pending;
 volatile uint32_t g_usb_revision;
 volatile uint32_t g_usb_last_spi_status;
 volatile uint32_t g_usb_debug_stage;
@@ -178,41 +210,60 @@ static int fifo_write(uint8_t address, const uint8_t *data, unsigned length)
 static int fifo_read(uint8_t *data, unsigned length)
 {
     unsigned i = 0;
+    uint8_t rx;
+    uint8_t command = REG_RCVFIFO;
+    unsigned stage = 0;
     int result = -1;
     if (length > 64u) return -1;
-    /* RCVBC is read before this call.  Clear RCVDAV, then unload exactly
-     * that many bytes while one CS assertion keeps the FIFO address active. */
-    if (reg_write(REG_HIRQ, RCVDAVIRQ)) return -1;
+    /* RCVFIFO is an RSC (read-and-stream) register.  MAX3421E requires one
+     * CS assertion for the command byte and every following dummy byte.  The
+     * PH1P35 QSPI captures MISO reliably in RX direction, so send the command
+     * in TX direction, then switch to RX while CS is still held low. */
     AlQspi_ll_SetCsMode(spi.BaseAddr, AL_QSPI_CS_MODE_HOLD);
-    /* RCVFIFO is a streaming register.  Send its command once; while CS
-     * stays asserted, each following dummy byte clocks the next FIFO byte.
-     * Re-sending the address for every byte restarts the FIFO access and
-     * returns mis-framed data. */
-    {
-        const uint8_t command = REG_RCVFIFO;
-        if (send_bytes(&command, 1u)) goto done;
-    }
-    AlQspi_ll_ClrStatus(spi.BaseAddr, AL_QSPI_RX_DONE);
+    while ((AlQspi_ll_GetStatus(spi.BaseAddr) &
+            (1u << AL_QSPI_RX_FIFO_EMPTY)) == 0u)
+        (void)AlQspi_ll_RecvData(spi.BaseAddr);
+    AlQspi_ll_ClrStatus(spi.BaseAddr, AL_QSPI_TX_DONE |
+                        AL_QSPI_RX_DONE | AL_QSPI_DONE);
+    stage = 1;
+    if (send_bytes(&command, 1u)) goto done;
+    /* TX mode may have captured the command-phase MISO byte.  It is not a
+     * FIFO payload; discard it before changing to RX mode. */
+    while ((AlQspi_ll_GetStatus(spi.BaseAddr) &
+            (1u << AL_QSPI_RX_FIFO_EMPTY)) == 0u)
+        (void)AlQspi_ll_RecvData(spi.BaseAddr);
+    AlQspi_ll_ClrStatus(spi.BaseAddr, AL_QSPI_RX_DONE | AL_QSPI_DONE);
+    AlQspi_ll_SetRxMark(spi.BaseAddr, 0u);
     AlQspi_ll_SetRxSize(spi.BaseAddr, length);
     AlQspi_ll_SetDirection(spi.BaseAddr, AL_QSPI_RX);
     for (i = 0; i < length; ++i) {
+        stage = 2;
         if (wait_status(1u << AL_QSPI_TX_FIFO_FULL, 0)) goto done;
         AlQspi_ll_SendData(spi.BaseAddr, 0x00u);
+        stage = 3;
         if (wait_status(1u << AL_QSPI_RX_FIFO_EMPTY, 0)) goto done;
-        data[i] = (uint8_t)AlQspi_ll_RecvData(spi.BaseAddr);
+        rx = (uint8_t)AlQspi_ll_RecvData(spi.BaseAddr);
+        data[i] = rx;
     }
+    stage = 4;
     if (wait_status(1u << AL_QSPI_RX_DONE,
                     1u << AL_QSPI_RX_DONE) ||
         wait_status(1u << AL_QSPI_BUSY, 0)) goto done;
-    AlQspi_ll_ClrStatus(spi.BaseAddr, AL_QSPI_RX_DONE);
+    AlQspi_ll_ClrStatus(spi.BaseAddr, AL_QSPI_TX_DONE |
+                        AL_QSPI_RX_DONE | AL_QSPI_DONE);
     result = 0;
+    stage = 5;
 
 done:
-    if (result) {
-        al_printf("MAX3421E: RCVFIFO read failed byte=%u/%u spi_status=0x%08x\r\n",
-                  i, length, (unsigned)g_usb_last_spi_status);
-    }
+    /* The MAX3421E programming guide's corrected sequence is: read exactly
+     * RCVBC bytes, then clear RCVDAVIRQ.  Clearing it before this stream can
+     * switch the internal double-buffer and returns bytes from the wrong FIFO. */
     AlQspi_ll_SetCsMode(spi.BaseAddr, AL_QSPI_CS_MODE_OFF);
+    if (!result && reg_write(REG_HIRQ, RCVDAVIRQ)) result = -1;
+    if (result) {
+        diag_printf("MAX3421E: RCVFIFO read failed stage=%u byte=%u/%u spi_status=0x%08x\r\n",
+                  stage, i, length, (unsigned)g_usb_last_spi_status);
+    }
     return result;
 }
 
@@ -237,7 +288,7 @@ static int host_token_retry(uint8_t token, uint8_t *result)
 {
     unsigned attempt;
     for (attempt = 0; attempt < 4u; ++attempt) {
-        if (reg_write(REG_HIRQ, HXFRDNIRQ | RCVDAVIRQ) ||
+        if (reg_write(REG_HIRQ, HXFRDNIRQ) ||
             reg_write(REG_HXFR, token) ||
             host_wait_transfer(result)) return -1;
         if (*result == 0u) return 0;
@@ -247,15 +298,35 @@ static int host_token_retry(uint8_t token, uint8_t *result)
     return 4;
 }
 
-static int host_control_read(uint8_t request, uint16_t value,
+/* After BUSRST the guide requires SOF to be running and at least one fresh
+ * FRAMEIRQ before the first SETUP token.  A fixed delay alone can leave the
+ * SIE one frame behind on a hub that is still completing reset. */
+static int host_wait_frame(void)
+{
+    uint8_t irq = 0;
+    unsigned i;
+    if (reg_write(REG_HIRQ, FRAMEIRQ)) return -1;
+    for (i = 0; i < HOST_FRAME_WAIT_LIMIT; ++i) {
+        if (reg_read(REG_HIRQ, &irq)) return -1;
+        if (irq & FRAMEIRQ) {
+            if (reg_write(REG_HIRQ, FRAMEIRQ)) return -1;
+            return 0;
+        }
+        AlSys_MDelay(1);
+    }
+    return -2;
+}
+
+static int host_control_read(uint8_t request_type, uint8_t request,
+                             uint16_t value,
                              uint16_t index, uint8_t *data,
                              unsigned length, unsigned mps,
                              unsigned *actual)
 {
-    uint8_t setup[8], result, count, hrsl_full;
+    uint8_t setup[8], result, count, hrsl_full, hirq_after;
     unsigned got = 0;
     int rc;
-    setup[0] = 0x80u; setup[1] = request;
+    setup[0] = request_type; setup[1] = request;
     setup[2] = (uint8_t)value; setup[3] = (uint8_t)(value >> 8);
     setup[4] = (uint8_t)index; setup[5] = (uint8_t)(index >> 8);
     setup[6] = (uint8_t)length; setup[7] = (uint8_t)(length >> 8);
@@ -266,13 +337,24 @@ static int host_control_read(uint8_t request, uint16_t value,
     while (got < length) {
         rc = host_token_retry(TOK_IN, &result);
         if (rc) return rc;
+        /* HXFRDN alone only says that the token completed.  For an IN data
+         * stage the MAX3421E must also assert RCVDAV before RCVBC/FIFO are
+         * touched; otherwise a stale byte count could be consumed. */
+        if (reg_read(REG_HIRQ, &hirq_after) ||
+            reg_read(REG_HRSL, &hrsl_full)) return -1;
+        if (!(hirq_after & RCVDAVIRQ)) {
+            diag_printf("MAX3421E: ctrl IN no RCVDAV value=0x%04x pkt=%u HRSL=0x%02x HIRQ=0x%02x RCVBC=%u\r\n",
+                      (unsigned)value, (unsigned)(got / (mps ? mps : 1u)),
+                      (unsigned)hrsl_full, (unsigned)hirq_after, 0u);
+            return -10;
+        }
         if (reg_read(REG_RCVBC, &count)) return -1;
         if (count > 64u || count > length - got) return -2;
         if (request == 0x06u && value == 0x0100u) {
-            if (reg_read(REG_HRSL, &hrsl_full)) return -1;
-            al_printf("MAX3421E: ctrl IN value=0x%04x pkt=%u HRSL=0x%02x RCVBC=%u\r\n",
+            diag_printf("MAX3421E: ctrl IN value=0x%04x pkt=%u HRSL=0x%02x HIRQ=0x%02x RCVBC=%u\r\n",
                       (unsigned)value, (unsigned)(got / (mps ? mps : 1u)),
-                      (unsigned)hrsl_full, (unsigned)count);
+                      (unsigned)hrsl_full, (unsigned)hirq_after,
+                      (unsigned)count);
         }
         if (count && fifo_read(data + got, count)) return -1;
         got += count;
@@ -298,27 +380,186 @@ static int host_control_write(uint8_t request, uint16_t value,
     return host_token_retry(TOK_INHS, &result);
 }
 
+static int host_control_read(uint8_t request_type, uint8_t request,
+                             uint16_t value, uint16_t index,
+                             uint8_t *data, unsigned length, unsigned mps,
+                             unsigned *actual);
+
 static void host_print_configuration(const uint8_t *data, unsigned length)
 {
     unsigned p = 0, cls = 0xffu;
+    unsigned hid_slot = HID_MAX_INTERFACES;
+    unsigned i;
+    hid_endpoint_count = 0;
+    for (i = 0; i < HID_MAX_INTERFACES; ++i) {
+        hid_endpoints[i].interface_number = 0xffu;
+        hid_endpoints[i].endpoint_address = 0u;
+        hid_endpoints[i].max_packet = 0u;
+        hid_endpoints[i].interval = 0u;
+        hid_endpoints[i].report_length = 0u;
+        hid_endpoints[i].rcv_toggle = HCTL_RCVTOG0;
+        hid_endpoints[i].ready = 0u;
+        hid_endpoints[i].report_dumped = 0u;
+    }
     while (p + 2u <= length) {
         unsigned dlen = data[p], type = data[p + 1u];
         if (dlen < 2u || p + dlen > length) break;
         if (type == 4u && dlen >= 9u) {
             cls = data[p + 5u];
-            al_printf("MAX3421E: USB interface class=0x%02x subclass=0x%02x protocol=0x%02x\r\n",
+            diag_printf("MAX3421E: USB interface class=0x%02x subclass=0x%02x protocol=0x%02x\r\n",
                       cls, data[p + 6u], data[p + 7u]);
+            hid_slot = HID_MAX_INTERFACES;
+            if (cls == 0x03u && hid_endpoint_count < HID_MAX_INTERFACES) {
+                hid_slot = hid_endpoint_count++;
+                hid_endpoints[hid_slot].interface_number = data[p + 2u];
+            }
+        } else if (type == 0x21u && dlen >= 9u && hid_slot < HID_MAX_INTERFACES) {
+            /* HID descriptor: the first subordinate descriptor is normally
+             * the report descriptor (type 0x22), with a 16-bit length. */
+            if (data[p + 5u] != 0u && data[p + 6u] == 0x22u) {
+                hid_endpoints[hid_slot].report_length =
+                    (uint16_t)data[p + 7u] | ((uint16_t)data[p + 8u] << 8);
+                diag_printf("MAX3421E: HID interface=%u report_len=%u\r\n",
+                          (unsigned)hid_endpoints[hid_slot].interface_number,
+                          (unsigned)hid_endpoints[hid_slot].report_length);
+            }
         } else if (type == 5u && dlen >= 7u) {
-            al_printf("MAX3421E: USB endpoint=0x%02x attr=0x%02x maxpkt=%u\r\n",
+            diag_printf("MAX3421E: USB endpoint=0x%02x attr=0x%02x maxpkt=%u\r\n",
                       data[p + 2u], data[p + 3u],
                       (unsigned)data[p + 4u] | ((unsigned)data[p + 5u] << 8));
+            if (hid_slot < HID_MAX_INTERFACES &&
+                hid_endpoints[hid_slot].endpoint_address == 0u &&
+                (data[p + 2u] & 0x80u) != 0u &&
+                (data[p + 3u] & 0x03u) == 0x03u) {
+                hid_endpoints[hid_slot].endpoint_address = data[p + 2u];
+                hid_endpoints[hid_slot].max_packet =
+                    (uint8_t)((unsigned)data[p + 4u] |
+                              (((unsigned)data[p + 5u] & 0x07u) << 8));
+                hid_endpoints[hid_slot].interval = data[p + 6u];
+            }
         }
         p += dlen;
     }
     if (cls == 0x03u)
-        al_printf("MAX3421E: HID device detected; touchscreen report parsing is next stage\r\n");
+        diag_printf("MAX3421E: HID device detected; touchscreen report parsing is next stage\r\n");
     else if (cls == 0x09u)
-        al_printf("MAX3421E: USB hub interface detected; downstream enumeration is next stage\r\n");
+        diag_printf("MAX3421E: USB hub interface detected; downstream enumeration is next stage\r\n");
+}
+
+static void hid_dump_report(const uint8_t *data, unsigned length,
+                            unsigned interface_number)
+{
+    unsigned i;
+    unsigned limit = (length > 96u) ? 96u : length;
+    diag_printf("MAX3421E: HID report descriptor iface=%u len=%u data=",
+              interface_number, length);
+    for (i = 0; i < limit; ++i) diag_printf("%02x%s", data[i],
+                                          (i + 1u == limit) ? "" : " ");
+    if (limit != length) diag_printf(" ...");
+    diag_printf("\r\n");
+}
+
+static void hid_read_report_descriptors(unsigned ep0_mps)
+{
+    unsigned i, got;
+    int rc;
+    for (i = 0; i < hid_endpoint_count; ++i) {
+        HidEndpoint *ep = &hid_endpoints[i];
+        if (ep->endpoint_address == 0u || ep->report_length == 0u) {
+            diag_printf("MAX3421E: HID iface=%u has no interrupt-IN/report descriptor\r\n",
+                      (unsigned)ep->interface_number);
+            continue;
+        }
+        if (ep->report_length > sizeof(hid_report_descriptor)) {
+            diag_printf("MAX3421E: HID iface=%u report descriptor too large=%u\r\n",
+                      (unsigned)ep->interface_number, (unsigned)ep->report_length);
+            continue;
+        }
+        got = 0;
+        rc = host_control_read(0x81u, 0x06u, 0x2200u,
+                               ep->interface_number, hid_report_descriptor,
+                               ep->report_length, ep0_mps, &got);
+        if (rc || got == 0u) {
+            diag_printf("MAX3421E: HID report descriptor iface=%u failed rc=%d len=%u/%u\r\n",
+                      (unsigned)ep->interface_number, rc, got,
+                      (unsigned)ep->report_length);
+            continue;
+        }
+        hid_dump_report(hid_report_descriptor, got, ep->interface_number);
+        ep->ready = 1u;
+        ep->report_dumped = 0u;
+        diag_printf("MAX3421E: HID poll ready iface=%u ep=0x%02x maxpkt=%u interval=%u\r\n",
+                  (unsigned)ep->interface_number,
+                  (unsigned)ep->endpoint_address,
+                  (unsigned)ep->max_packet, (unsigned)ep->interval);
+    }
+}
+
+static int hid_interrupt_in(HidEndpoint *ep, uint8_t *data,
+                            unsigned *actual)
+{
+    uint8_t result, irq, hrsl, count;
+    unsigned endpoint = ep->endpoint_address & 0x0fu;
+    int rc;
+    if (!endpoint || ep->max_packet == 0u) return -1;
+    if (reg_write(REG_HCTL, ep->rcv_toggle)) return -1;
+    rc = host_token_retry((uint8_t)(TOK_IN | endpoint), &result);
+    if (rc) return rc;
+    if (reg_read(REG_HIRQ, &irq) || reg_read(REG_HRSL, &hrsl)) return -1;
+    if (!(irq & RCVDAVIRQ)) return -10;
+    if (reg_read(REG_RCVBC, &count)) return -1;
+    if (count > ep->max_packet || count > 64u) return -2;
+    if (count) {
+        if (fifo_read(data, count)) return -1;
+    } else if (reg_write(REG_HIRQ, RCVDAVIRQ)) {
+        return -1;
+    }
+    if (actual) *actual = count;
+    ep->rcv_toggle = (hrsl & HRSL_RCVTOGRD) ? HCTL_RCVTOG1 : HCTL_RCVTOG0;
+    return 0;
+}
+
+static void hid_poll_reports(void)
+{
+    uint8_t report[64];
+    unsigned i, got, j;
+    int nonzero;
+    int rc;
+    for (i = 0; i < hid_endpoint_count; ++i) {
+        HidEndpoint *ep = &hid_endpoints[i];
+        if (!ep->ready) continue;
+        if (ep->interface_number != 0u || ep->endpoint_address != 0x81u)
+            continue;
+        got = 0;
+        rc = hid_interrupt_in(ep, report, &got);
+        if (rc == 4 || rc == -10) continue; /* idle HID endpoint / no data */
+        if (rc || got == 0u) continue;
+        if (touch_decode(&touch_decoder, report, got, &touch_event))
+            touch_pending = 1u;
+        nonzero = 0;
+        for (j = 0; j < got; ++j)
+            if (report[j] != 0u) { nonzero = 1; break; }
+        /* Keep a couple of idle packets to establish the report shape, then
+         * print every non-zero packet so a later touch is never missed. */
+        if (nonzero || ep->report_dumped < 2u) {
+            al_printf("TOUCH_REPORT iface=%u ep=0x%02x len=%u data=",
+                      (unsigned)ep->interface_number,
+                      (unsigned)ep->endpoint_address, got);
+            for (j = 0; j < got; ++j)
+                al_printf("%02x%s", report[j], (j + 1u == got) ? "" : " ");
+            al_printf("\r\n");
+            if (!nonzero && ep->report_dumped != 0xffu)
+                ++ep->report_dumped;
+        }
+    }
+}
+
+int max3421e_touch_pop(TouchEvent *event)
+{
+    if (!touch_pending || !event) return 0;
+    *event = touch_event;
+    touch_pending = 0u;
+    return 1;
 }
 
 static void host_descriptor_probe(void)
@@ -327,61 +568,100 @@ static void host_descriptor_probe(void)
     unsigned got = 0, total, mps;
     int rc;
     if (host_descriptor_done || host_bus_state == 0u) return;
+    hid_endpoint_count = 0u;
     if (reg_write(REG_MODE, MODE_HOST_SOF)) {
-        al_printf("MAX3421E: USB host SOF start failed\r\n");
+        diag_printf("MAX3421E: USB host SOF start failed\r\n");
         return;
     }
-    /* USB 2.0 requires a recovery interval after bus reset before the
-     * first SETUP transaction.  Three milliseconds is enough for the SIE
-     * clock but too short for some hubs to finish reset processing. */
+    /* USB 2.0 requires a recovery interval after bus reset and a fresh frame
+     * event before the first SETUP transaction. */
     AlSys_MDelay(10);
-    rc = host_control_read(0x06u, 0x0100u, 0u, dev8, 8u, 8u, &got);
+    diag_printf("MAX3421E: RCVFIFO fifo-mode=held-cs-command-tx-payload-rx\r\n");
+    if (host_wait_frame()) {
+        diag_printf("MAX3421E: USB host SOF FRAMEIRQ timeout\r\n");
+        return;
+    }
+    rc = host_control_read(0x80u, 0x06u, 0x0100u, 0u, dev8, 8u, 8u, &got);
     if (got >= 8u)
-        al_printf("MAX3421E: GET_DESCRIPTOR(8) raw=%02x %02x %02x %02x %02x %02x %02x %02x\r\n",
+        diag_printf("MAX3421E: GET_DESCRIPTOR(8) raw=%02x %02x %02x %02x %02x %02x %02x %02x\r\n",
                   dev8[0], dev8[1], dev8[2], dev8[3],
                   dev8[4], dev8[5], dev8[6], dev8[7]);
     if (rc || got < 8u || dev8[1] != 1u || dev8[0] < 8u) {
-        al_printf("MAX3421E: GET_DESCRIPTOR(8) failed rc=%d len=%u\r\n", rc, got);
+        diag_printf("MAX3421E: GET_DESCRIPTOR(8) failed rc=%d len=%u\r\n", rc, got);
         return;
     }
     mps = dev8[7];
     if (mps != 8u && mps != 16u && mps != 32u && mps != 64u) {
-        al_printf("MAX3421E: invalid EP0 max packet %u\r\n", mps);
+        diag_printf("MAX3421E: invalid EP0 max packet %u\r\n", mps);
         return;
     }
-    rc = host_control_read(0x06u, 0x0100u, 0u, dev, 18u, mps, &got);
+    rc = host_control_read(0x80u, 0x06u, 0x0100u, 0u, dev, 18u, mps, &got);
     if (rc || got < 18u || dev[1] != 1u) {
-        al_printf("MAX3421E: GET_DESCRIPTOR(device) failed rc=%d len=%u\r\n", rc, got);
+        diag_printf("MAX3421E: GET_DESCRIPTOR(device) failed rc=%d len=%u\r\n", rc, got);
         return;
     }
-    al_printf("MAX3421E: USB device VID=0x%02x%02x PID=0x%02x%02x EP0=%u\r\n",
+    diag_printf("MAX3421E: USB device VID=0x%02x%02x PID=0x%02x%02x EP0=%u\r\n",
               dev[9], dev[8], dev[11], dev[10], mps);
     rc = host_control_write(0x05u, 1u, 0u);
-    if (rc) { al_printf("MAX3421E: SET_ADDRESS failed rc=%d\r\n", rc); return; }
+    if (rc) { diag_printf("MAX3421E: SET_ADDRESS failed rc=%d\r\n", rc); return; }
     AlSys_MDelay(2);
     if (reg_write(REG_PERADDR, 1u)) return;
-    rc = host_control_read(0x06u, 0x0200u, 0u, cfg, 9u, mps, &got);
+    rc = host_control_read(0x80u, 0x06u, 0x0200u, 0u, cfg, 9u, mps, &got);
     if (rc || got < 9u || cfg[1] != 2u) {
-        al_printf("MAX3421E: GET_DESCRIPTOR(config header) failed rc=%d len=%u\r\n", rc, got);
+        diag_printf("MAX3421E: GET_DESCRIPTOR(config header) failed rc=%d len=%u\r\n", rc, got);
         return;
     }
     total = (unsigned)cfg[2] | ((unsigned)cfg[3] << 8);
     if (total < 9u || total > sizeof(cfg)) {
-        al_printf("MAX3421E: invalid configuration length %u\r\n", total);
+        diag_printf("MAX3421E: invalid configuration length %u\r\n", total);
         return;
     }
-    rc = host_control_read(0x06u, 0x0200u, 0u, cfg, total, mps, &got);
+    rc = host_control_read(0x80u, 0x06u, 0x0200u, 0u, cfg, total, mps, &got);
     if (rc || got < total) {
-        al_printf("MAX3421E: GET_DESCRIPTOR(config) failed rc=%d len=%u/%u\r\n",
+        diag_printf("MAX3421E: GET_DESCRIPTOR(config) failed rc=%d len=%u/%u\r\n",
                   rc, got, total);
         return;
     }
     host_print_configuration(cfg, total);
     rc = host_control_write(0x09u, cfg[5], 0u);
-    if (rc) { al_printf("MAX3421E: SET_CONFIGURATION failed rc=%d\r\n", rc); return; }
+    if (rc) { diag_printf("MAX3421E: SET_CONFIGURATION failed rc=%d\r\n", rc); return; }
+    hid_read_report_descriptors(mps);
     host_descriptor_done = 1;
-    al_printf("MAX3421E: USB enumeration complete address=1 configuration=%u\r\n",
+    diag_printf("MAX3421E: USB enumeration complete address=1 configuration=%u\r\n",
               (unsigned)cfg[5]);
+}
+
+/* Reset and enumerate one attached device.  Keep this in one helper so the
+ * boot path and a later CONDETIRQ (device plugged in after boot) use exactly
+ * the same timing and stale-IRQ cleanup. */
+static int host_bus_reset_and_probe(void)
+{
+    uint8_t reset_irq = 0;
+    unsigned i;
+    host_descriptor_done = 0;
+    if (reg_write(REG_HIRQ, BUSEVENTIRQ | HXFRDNIRQ | RCVDAVIRQ) ||
+        reg_write(REG_HCTL, BUSRST))
+        return -1;
+    AlSys_MDelay(50);
+    if (reg_write(REG_HCTL, 0)) return -1;
+    for (i = 0; i < 100u; ++i) {
+        if (reg_read(REG_HIRQ, &reset_irq)) return -1;
+        if (reset_irq & BUSEVENTIRQ) break;
+        AlSys_MDelay(1);
+    }
+    if (!(reset_irq & BUSEVENTIRQ)) {
+        diag_printf("MAX3421E: USB bus reset TIMEOUT BUS=0x%02x HIRQ=0x%02x\r\n",
+                  (unsigned)host_bus_state, (unsigned)reset_irq);
+        return -2;
+    }
+    (void)reg_write(REG_HIRQ, BUSEVENTIRQ);
+    AlSys_MDelay(10);
+    host_descriptor_probe();
+    if (!host_descriptor_done)
+        diag_printf("MAX3421E: USB bus reset DONE; enumeration not complete; SPI host remains usable\r\n");
+    diag_printf("MAX3421E: USB bus reset DONE BUS=0x%02x HIRQ=0x%02x\r\n",
+              (unsigned)host_bus_state, (unsigned)reset_irq);
+    return 0;
 }
 /* Independent SIE clock test when the latched OSCOK interrupt is absent.
  * Each counted event must follow a confirmed cleared FRAMEIRQ. A stale IRQ
@@ -431,7 +711,7 @@ restore:
         if (cleanup) result = "SPI_FAIL";
     }
 report:
-    al_printf("MAX3421E: FRAME test %s events=%u/3 MODE=0x%02x\r\n",
+    diag_printf("MAX3421E: FRAME test %s events=%u/3 MODE=0x%02x\r\n",
               result, frames, (unsigned)mode);
 }
 
@@ -474,15 +754,15 @@ static int probe(int verbose)
     AlSys_MDelay(10);
     ctrl = board_read(USB_CTRL);
     status = board_read(USB_STATUS);
-    if(verbose) al_printf("MAX3421E: SPI isolated CTRL=0x%08x STATUS=0x%08x\r\n", ctrl, status);
+    if(verbose) diag_printf("MAX3421E: SPI isolated CTRL=0x%08x STATUS=0x%08x\r\n", ctrl, status);
     if (ctrl != 0 || (status & 6u) != 0) return -7;
     board_write(USB_CTRL, 3); /* Enable QSPI pins; /RES is independent of CTRL. */
     AlSys_MDelay(20);
     ctrl = board_read(USB_CTRL);
     status = board_read(USB_STATUS);
-    if(verbose) al_printf("MAX3421E: SPI enabled CTRL=0x%08x STATUS=0x%08x\r\n", ctrl, status);
+    if(verbose) diag_printf("MAX3421E: SPI enabled CTRL=0x%08x STATUS=0x%08x\r\n", ctrl, status);
     if (ctrl != 3 || (status & 6u) != 6u) return -7;
-    if(verbose) al_printf("MAX3421E: QSPI base=0x%08x CSID=0x%08x CSDEF=0x%08x DIV=0x%08x\r\n",
+    if(verbose) diag_printf("MAX3421E: QSPI base=0x%08x CSID=0x%08x CSDEF=0x%08x DIV=0x%08x\r\n",
               (uint32_t)spi.BaseAddr,
               (uint32_t)AL_REG32_READ(spi.BaseAddr + QSPI_SPI_CSID_OFFSET),
               (uint32_t)AL_REG32_READ(spi.BaseAddr + QSPI_SPI_CSDEF_OFFSET),
@@ -493,7 +773,7 @@ static int probe(int verbose)
     if (reg_write(REG_PINCTL, PINCTL_VALUE)) return -1;
     if (reg_read(REG_REVISION, &revision)) return -1;
     g_usb_revision = revision;
-    if(verbose) al_printf("MAX3421E: REVISION=0x%02x\r\n", (unsigned)revision);
+    if(verbose) diag_printf("MAX3421E: REVISION=0x%02x\r\n", (unsigned)revision);
     if (revision != 0x01 && revision != 0x12 && revision != 0x13) return -3;
     for (i = 0; i < 32; ++i) {
         if (reg_read(REG_REVISION, &value)) return -1;
@@ -505,7 +785,7 @@ static int probe(int verbose)
      * FDUPSPI and INTLEVEL remain enabled during this test. */
     if (reg_write(REG_PINCTL, 0x1b) || reg_read(REG_PINCTL, &value)) return -1;
     if (verbose || value != 0x1b)
-        al_printf("MAX3421E: PINCTL odd write=0x1B read=0x%02x\r\n", (unsigned)value);
+        diag_printf("MAX3421E: PINCTL odd write=0x1B read=0x%02x\r\n", (unsigned)value);
     if (value != 0x1b) {
         (void)reg_write(REG_PINCTL, PINCTL_VALUE);
         return -4;
@@ -562,33 +842,10 @@ static int probe(int verbose)
     host_bus_state = value & (HRSL_JSTATUS | HRSL_KSTATUS);
     if (reg_read(REG_HIRQ, &host_last_hirq)) return -1;
     if (host_bus_state != 0u) {
-        /* USB reset is the first host transaction.  Keep it bounded so a
-         * powered-but-invalid cable cannot stall the UI forever. */
-        uint8_t reset_irq = 0;
-        /* Discard the connection-detector/reset event left by SAMPLEBUS.
-         * The event observed below must be generated by this BUSRST. */
-        if (reg_write(REG_HIRQ, BUSEVENTIRQ | HXFRDNIRQ | RCVDAVIRQ) ||
-            reg_write(REG_HCTL, BUSRST)) return -1;
-        AlSys_MDelay(50);
-        if (reg_write(REG_HCTL, 0)) return -1;
-        for (i = 0; i < 100; ++i) {
-            if (reg_read(REG_HIRQ, &reset_irq)) return -1;
-            if (reset_irq & BUSEVENTIRQ) break;
-            AlSys_MDelay(1);
-        }
-        if (reset_irq & BUSEVENTIRQ) {
-            (void)reg_write(REG_HIRQ, BUSEVENTIRQ);
-            AlSys_MDelay(10);
-            host_descriptor_probe();
-            al_printf("MAX3421E: USB bus reset DONE BUS=0x%02x HIRQ=0x%02x\r\n",
-                      (unsigned)host_bus_state, (unsigned)reset_irq);
-        } else {
-            al_printf("MAX3421E: USB bus reset TIMEOUT BUS=0x%02x HIRQ=0x%02x\r\n",
-                      (unsigned)host_bus_state, (unsigned)reset_irq);
-        }
+        if (host_bus_reset_and_probe()) return -1;
     }
     g_usb_debug_stage = 5;
-    al_printf("MAX3421E: SPI PASS, OSCOK(init)=1, HOST=1 BUS=0x%02x HIRQ=0x%02x\r\n",
+    diag_printf("MAX3421E: SPI PASS, OSCOK(init)=1, HOST=1 BUS=0x%02x HIRQ=0x%02x\r\n",
               (unsigned)host_bus_state, (unsigned)host_last_hirq);
     return 0;
 }
@@ -603,17 +860,19 @@ int max3421e_diag_init(uint32_t ui_base)
     host_bus_state = 0xffu;
     host_last_hirq = 0;
     host_descriptor_done = 0;
+    touch_pending = 0u;
+    touch_decoder.down = 0u;
     if (!extension_present) {
         diag_result = -2;
-        al_printf("MAX3421E: FPGA USB extension missing; load the new bit first\r\n");
+        diag_printf("MAX3421E: FPGA USB extension missing; load the new bit first\r\n");
         return diag_result;
     }
-    al_printf("MAX3421E: QSPI1 diag-v11; USB host enumeration\r\n");
+    diag_printf("MAX3421E: QSPI1 diag-v11; USB host enumeration\r\n");
     diag_result = probe(1);
     if (diag_result) {
         board_write(USB_CTRL, 0);
         /* CTRL/STATUS include APB shadow bits, not a physical /RES readback. */
-        al_printf("MAX3421E: failed; SPI isolated; retry; CTRL=0x%08x STATUS=0x%08x\r\n",
+        diag_printf("MAX3421E: failed; SPI isolated; retry; CTRL=0x%08x STATUS=0x%08x\r\n",
                   (unsigned)board_read(USB_CTRL),
                   (unsigned)board_read(USB_STATUS));
     }
@@ -647,30 +906,44 @@ void max3421e_diag_report(void)
             if ((irq & CONDETIRQ) != 0u) {
                 /* HIRQ bits are write-one-to-clear.  Re-sample the bus after
                  * a connection transition and leave the detector enabled. */
+                uint8_t old_bus_state = host_bus_state;
                 (void)reg_write(REG_HIRQ, CONDETIRQ);
                 if (!reg_write(REG_HCTL, SAMPLEBUS) &&
                     !reg_read(REG_HCTL, &hctl) && !(hctl & SAMPLEBUS) &&
                     !reg_read(REG_HRSL, &hrsl)) {
                     host_bus_state = hrsl & (HRSL_JSTATUS | HRSL_KSTATUS);
-                    al_printf("MAX3421E: USB bus event HIRQ=0x%02x BUS=0x%02x\r\n",
+                    diag_printf("MAX3421E: USB bus event HIRQ=0x%02x BUS=0x%02x\r\n",
                               (unsigned)irq, (unsigned)host_bus_state);
+                    host_descriptor_done = 0;
+                    touch_decoder.down = 0;
+                    touch_event.type = TOUCH_CANCEL;
+                    touch_pending = 1;
+                    if (host_bus_state != 0u && host_bus_state != old_bus_state)
+                        (void)host_bus_reset_and_probe();
                 }
             }
         }
         if (diag_result) board_write(USB_CTRL, 0);
     }
+    if (diag_result && touch_decoder.down) {
+        touch_decoder.down = 0;
+        touch_event.type = TOUCH_CANCEL;
+        touch_pending = 1;
+    }
+    if (!diag_result && host_descriptor_done && !touch_pending)
+        hid_poll_reports();
     if (!diag_result)
-        al_printf("MAX3421E QSPI1: READY REV=0x%02x HOST=1 SOF=%u INT_n=%u\r\n",
+        diag_printf("MAX3421E QSPI1: READY REV=0x%02x HOST=1 SOF=%u INT_n=%u\r\n",
                   (unsigned)revision, (unsigned)(mode == MODE_HOST_SOF),
                   (unsigned)(board_read(USB_STATUS) & 1u));
     else
-        al_printf("MAX3421E QSPI1: FAIL code=%d stage=%u rev=0x%02x spi_status=0x%08x CTRL=0x%08x STATUS=0x%08x\r\n",
+        diag_printf("MAX3421E QSPI1: FAIL code=%d stage=%u rev=0x%02x spi_status=0x%08x CTRL=0x%08x STATUS=0x%08x\r\n",
                   diag_result, (unsigned)g_usb_debug_stage,
                   (unsigned)g_usb_revision, (unsigned)g_usb_last_spi_status,
                   (unsigned)board_read(USB_CTRL),
                   (unsigned)board_read(USB_STATUS));
     if (diag_result && g_usb_debug_stage == 3)
-        al_printf("MAX3421E: stage3 USBCTL stop=0x%02x run=0x%02x USBIRQ before=0x%02x last=0x%02x\r\n",
+        diag_printf("MAX3421E: stage3 USBCTL stop=0x%02x run=0x%02x USBIRQ before=0x%02x last=0x%02x\r\n",
                   (unsigned)g_usb_ctl_reset, (unsigned)g_usb_ctl_run,
                   (unsigned)g_usb_irq_before_reset, (unsigned)g_usb_irq_last);
 }

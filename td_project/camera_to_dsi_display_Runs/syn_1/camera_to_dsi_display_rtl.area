@@ -8,71 +8,63 @@ IO Statistics
   #inout                   38
 
 Gate Statistics
-#Basic gates            58386
-  #and                  14621
+#Basic gates            53537
+  #and                  14753
   #nand                     0
-  #or                    5432
+  #or                    5663
   #nor                      0
-  #xor                     96
+  #xor                    110
   #xnor                     0
   #buf                      0
-  #not                   8209
+  #not                   8295
   #bufif1                   6
-  #MX21                  8708
+  #MX21                  8933
   #FADD                     0
-  #DFF                  21314
+  #DFF                  15777
   #LATCH                    0
-#MACRO_ADD               1199
-#MACRO_EQ                 432
+#MACRO_ADD               1556
+#MACRO_EQ                 434
 #MACRO_MULT                14
-#MACRO_MUX              10250
-#MACRO_OTHERS              14
-
-LUT Statistics
-#Total_luts              4530
-  #lut4                  2054
-  #lut5                    44
-  #lut6                   178
-  #lut5_mx41                0
-  #lut4_alu1b            2254
+#MACRO_MUX              12034
+#MACRO_OTHERS              15
 
 Report Hierarchy Area:
 +-----------------------------------------------------------------------------------------------------------------------------------------+
 |Instance                                                         |Module                                         |gates  |seq    |macros |
 +-----------------------------------------------------------------------------------------------------------------------------------------+
-|top                                                              |design_top_wrapper                             |37072  |21314  |1659   |
+|top                                                              |design_top_wrapper                             |37760  |15777  |2019   |
 |  u_PLL                                                          |PLL                                            |0      |0      |1      |
 |    ph1p_phy_pll_wrapper_25a56e5ce2f9_Inst                       |ph1p_phy_pll_wrapper_25a56e5ce2f9              |0      |0      |0      |
 |  u_ae_set                                                       |ae_set                                         |8      |43     |6      |
-|  u_color_detect_99                                              |color_detect                                   |233    |424    |53     |
+|  u_color_detect_99                                              |color_detect                                   |231    |424    |53     |
 |  u_csi_unpacket                                                 |csi_unpacket_2lane                             |10     |88     |6      |
 |  u_ds3231_i2c_ctrl                                              |ds3231_i2c_ctrl                                |861    |315    |27     |
 |    u_ds3231_bus                                                 |lens_i2c_master                                |819    |105    |15     |
 |  u_focus_metric                                                 |focus_metric                                   |5      |74     |5      |
-|  u_hdmi_mixer                                                   |hdmi_mixer                                     |16281  |331    |405    |
-|    u_image9                                                     |hdmi_mixer_image9                              |16281  |331    |405    |
-|      u_color_osd_renderer                                       |color_osd_renderer                             |117    |0      |28     |
-|      u_log1_rom                                                 |anlogic_logo_rom                               |9733   |0      |0      |
+|  u_hdmi_mixer                                                   |hdmi_mixer                                     |16315  |360    |428    |
+|    u_image9                                                     |hdmi_mixer_image9                              |16315  |360    |428    |
+|      u_color_osd_renderer                                       |color_osd_renderer                             |118    |0      |28     |
+|      u_log1_rom                                                 |anlogic_logo_rom                               |9688   |0      |0      |
 |      u_log2_rom                                                 |logo2_rom                                      |5278   |0      |0      |
 |      u_motion_osd_renderer_0                                    |motion_osd_renderer                            |82     |0      |17     |
 |      u_red_tracking_osd                                         |red_tracking_osd                               |285    |107    |89     |
 |      u_shape_osd_renderer                                       |shape_osd_renderer                             |105    |0      |23     |
 |      u_txt_glyph                                                |anlu_glyph_rom                                 |14     |0      |0      |
-|  u_hdmi_tx                                                      |hdmi_tx                                        |387    |1291   |151    |
+|  u_hdmi_tx                                                      |hdmi_tx                                        |397    |1292   |151    |
 |    u_hdmi2phy_wrapper                                           |hdmi_phy_wrapper                               |2      |54     |4      |
 |      u0_lane_lvds_8_1                                           |lane_lvds_10_1                                 |2      |18     |1      |
 |      u1_lane_lvds_8_1                                           |lane_lvds_10_1                                 |0      |12     |1      |
 |      u2_lane_lvds_8_1                                           |lane_lvds_10_1                                 |0      |12     |1      |
 |      u3_lane_lvds_8_1                                           |lane_lvds_10_1                                 |0      |12     |1      |
-|    u_hdmi_1_4b_transmitter_core_wrapper                         |hdmi_1_4b_transmitter_core_wrapper             |380    |1183   |147    |
+|    u_hdmi_1_4b_transmitter_core_wrapper                         |hdmi_1_4b_transmitter_core_wrapper             |390    |1184   |147    |
 |      u0_reset_sync                                              |hdmi_1_4b_tx_reset_sync                        |0      |2      |0      |
-|      u_hdmi_tx_controller_wrapper                               |hdmi_tx_controller_wrapper                     |379    |1181   |147    |
+|      u_hdmi_tx_controller_wrapper                               |hdmi_tx_controller_wrapper                     |389    |1182   |147    |
 |        u0_hdmi_tmds_encode                                      |hdmi_tmds_encode                               |95     |161    |41     |
 |        u1_hdmi_tmds_encode                                      |hdmi_tmds_encode                               |49     |109    |38     |
 |        u2_hdmi_tmds_encode                                      |hdmi_tmds_encode                               |52     |109    |38     |
 |        u_hdmi_data_distribution                                 |hdmi_data_distribution                         |0      |43     |0      |
 |        u_hdmi_island_data_assemble                              |hdmi_island_data_assemble                      |4      |418    |2      |
-|        u_hdmi_island_data_gen                                   |hdmi_island_data_gen                           |150    |261    |3      |
+|        u_hdmi_island_data_gen                                   |hdmi_island_data_gen                           |160    |262    |3      |
 |          U_audio_sample_packet_2_channel                        |audio_sample_packet_2_channel                  |2      |1      |1      |
 |            u_w96_d1024_fifo                                     |w96_d1024_fifo                                 |0      |0      |1      |
 |          u_audio_clock_regeneration_packet                      |audio_clock_regeneration_packet                |10     |101    |0      |
@@ -82,14 +74,12 @@ Report Hierarchy Area:
 |        u_video_axi_stream_receiver                              |video_axi_stream_receiver                      |9      |2      |1      |
 |          u_w24_d1024_fifo                                       |w24_d1024_fifo                                 |0      |0      |1      |
 |  u_hdmi_vtc                                                     |uivtc                                          |11     |33     |10     |
-|  u_isp_top                                                      |isp_top                                        |970    |10796  |168    |
-|    u_awb                                                        |awb                                            |119    |8839   |29     |
-|      div_gen_G_R_r1                                             |divider                                        |0      |4346   |0      |
-|      divide_G_B_r1                                              |divider                                        |0      |3768   |0      |
-|      signal_delay_d                                             |signal_delay                                   |31     |163    |15     |
-|        blk_mem_gen_awb_delay_signal_d                           |blk_mem_gen_awb_delay_signal                   |2      |0      |1      |
-|          ram_f84573da5ab5_Inst                                  |ram_f84573da5ab5                               |0      |0      |1      |
+|  u_image_filter_9                                               |image_filter                                   |80     |26     |41     |
+|  u_isp_top                                                      |isp_top                                        |1369   |4279   |332    |
+|    u_awb                                                        |awb                                            |477    |844    |43     |
 |    u_data_96bit_to_128bit                                       |data_96bit_to_128bit                           |5      |228    |1      |
+|    u_dbg_stat_post                                              |dbg_color_stat                                 |5      |306    |51     |
+|    u_dbg_stat_pre                                               |dbg_color_stat                                 |12     |160    |35     |
 |    u_demosaic                                                   |demosaic                                       |105    |1174   |61     |
 |      bilinear_interpolation_d                                   |bilinear_interpolation                         |0      |609    |24     |
 |      raw_matrix_3x3_buffer_d                                    |raw_matrix_3x3_buffer                          |105    |565    |37     |
@@ -103,9 +93,12 @@ Report Hierarchy Area:
 |        zhenghe_d                                                |zhenghe                                        |51     |133    |20     |
 |          blk_mem_gen_zhenghe_d1                                 |blk_mem_gen_zhenghe                            |0      |0      |1      |
 |            ram_d32970204f32_Inst                                |ram_d32970204f32                               |0      |0      |1      |
+|    u_rgb96_chroma_core                                          |rgb96_chroma_core                              |24     |392    |8      |
 |    u_rgb96_downscale_crop                                       |rgb96_downscale_crop                           |741    |555    |77     |
 |      u_scale_line_buffer                                        |blk_mem_gen_awb_delay_signal                   |0      |0      |1      |
 |        ram_f84573da5ab5_Inst                                    |ram_f84573da5ab5                               |0      |0      |1      |
+|    u_rgb96_gamma                                                |rgb96_gamma                                    |0      |294    |12     |
+|    u_rgb96_sat_boost                                            |rgb96_sat_boost                                |0      |326    |44     |
 |  u_lens_i2c_ctrl                                                |lens_i2c_ctrl                                  |961    |284    |27     |
 |    u_bus                                                        |lens_i2c_master                                |832    |131    |17     |
 |  u_mc_to_user_interface                                         |mc_to_user_interface                           |12     |181    |7      |
@@ -202,10 +195,16 @@ Report Hierarchy Area:
 |            byteIdx_1[0]$u_wfifo_sync                            |ph1p_ddr_fifo_dram_sync                        |6      |15     |6      |
 |            byteIdx_1[1]$u_wfifo_sync                            |ph1p_ddr_fifo_dram_sync                        |5      |11     |5      |
 |  u_raw10_unpacket                                               |raw10_unpacket_2lane                           |98     |144    |4      |
-|  u_red_target_tracker_99                                        |red_target_tracker                             |9387   |475    |89     |
+|  u_red_target_tracker_99                                        |red_target_tracker                             |9387   |475    |91     |
+|  u_rgb24_denoise_9                                              |rgb24_denoise                                  |52     |359    |79     |
+|    u_den_buf1                                                   |blk_mem_gen_awb_delay_signal                   |0      |0      |1      |
+|      ram_f84573da5ab5_Inst                                      |ram_f84573da5ab5                               |0      |0      |1      |
+|    u_den_buf2                                                   |blk_mem_gen_awb_delay_signal                   |0      |0      |1      |
+|      ram_f84573da5ab5_Inst                                      |ram_f84573da5ab5                               |0      |0      |1      |
 |  u_servo_pwm_2ch                                                |servo_pwm_2ch                                  |35     |68     |12     |
-|  u_shape_recognizer_99                                          |shape_recognizer_simple                        |1221   |287    |103    |
-|  u_ui_osd                                                       |ui_osd                                         |522    |77     |112    |
+|  u_shape_recognizer_99                                          |shape_recognizer_simple                        |1226   |287    |115    |
+|  u_sobel_edge_9                                                 |sobel_edge                                     |42     |274    |29     |
+|  u_ui_osd                                                       |ui_osd                                         |595    |101    |119    |
 |  u_uial2axis                                                    |uial2axis                                      |19     |28     |8      |
 |  u_uicfgcs500                                                   |uicfgcs500                                     |311    |89     |16     |
 |    gain_tbl                                                     |SC500GainTbl                                   |0      |8      |0      |
@@ -224,4 +223,5 @@ Report Hierarchy Area:
 |        ram_inst                                                 |ram_infer_4057d6b76aa6                         |0      |128    |0      |
 |        rd_to_wr_cross_inst                                      |fifo_cross_domain_addr_process_al_4057d6b76aa6 |16     |36     |0      |
 |        wr_to_rd_cross_inst                                      |fifo_cross_domain_addr_process_al_4057d6b76aa6 |16     |36     |0      |
+|  u_video_overlay_final_9                                        |video_overlay_final                            |0      |151    |0      |
 +-----------------------------------------------------------------------------------------------------------------------------------------+

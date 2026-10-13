@@ -177,6 +177,19 @@ module design_top_wrapper (
     wire        S_hdmi_out_de;
     wire[23:0]  S_hdmi_out_data;
 
+    // _9 post-DDR image branch.  The denoiser is kept as a side branch so
+    // the existing DDR/HDMI timing and the current menu/OSD path stay intact.
+    reg         S_video_de_1d;
+    wire        S_video_dn_de;
+    wire [23:0] S_video_dn_data;
+    wire [23:0] S_shape_input_data;
+    wire [7:0]  S_dn_noise;
+    wire [7:0]  S_dn_mean_y;
+    reg         S_isp_stat_t1, S_isp_stat_t2, S_isp_stat_t3;
+    reg [7:0]   S_isp_sat_pre_hdmi, S_isp_sat_post_hdmi;
+    reg [7:0]   S_isp_mean_r_hdmi, S_isp_mean_g_hdmi, S_isp_mean_b_hdmi;
+    reg [7:0]   S_isp_min_r_hdmi;
+
     // _9 image-menu state. All four physical keys are handled by the MCU
     // menu; these values cross from the MCU APB clock into HDMI below.
     wire [2:0]  S_dbg_disp_mode;
@@ -208,6 +221,14 @@ module design_top_wrapper (
     wire [6:0]  S_track_area;
     wire [23:0] S_hdmi_base_data;
     wire        S_hdmi_overlay_valid;
+    wire        S_effect_vsync, S_effect_hsync, S_effect_de;
+    wire [23:0] S_effect_data;
+    wire        S_edge_vsync, S_edge_hsync, S_edge_de;
+    wire [23:0] S_edge_data;
+    wire        S_edge_flag;
+    wire [7:0]  S_edge_gray;
+    wire        S_final_vsync, S_final_hsync, S_final_de;
+    wire [23:0] S_final_data;
 
     wire        S_mcu_apb_clk;
     wire [19:0] S_mcu_paddr;
@@ -365,6 +386,8 @@ module design_top_wrapper (
     reg         S_rtc_valid_p1, S_rtc_valid_p2;
     reg         S_rtc_error_p1, S_rtc_error_p2;
     reg         S_rtc_osf_p1, S_rtc_osf_p2;
+    (* async_reg="true" *) reg [15:0] S_rtc_count_p1, S_rtc_count_p2;
+    reg [15:0] S_rtc_count_p3, S_rtc_count_seen;
     reg [2:0]   S_image_step_p1, S_image_step_p2;
     reg [2:0]   S_image_effect_p1, S_image_effect_p2;
     reg [1:0]   S_image_target_p1, S_image_target_p2;
@@ -777,6 +800,8 @@ module design_top_wrapper (
             S_rtc_error_p2   <= 1'b0;
             S_rtc_osf_p1     <= 1'b1;
             S_rtc_osf_p2     <= 1'b1;
+            S_rtc_count_p1   <= 0; S_rtc_count_p2 <= 0;
+            S_rtc_count_p3   <= 0; S_rtc_count_seen <= 0;
             S_image_step_p1    <= 3'd1;
             S_image_step_p2    <= 3'd1;
             S_image_effect_p1  <= 3'd0;
@@ -807,11 +832,20 @@ module design_top_wrapper (
             S_ui_servo_tilt_p1 <= S_servo_tilt_us;
             S_ui_servo_tilt_p2 <= S_ui_servo_tilt_p1;
             S_rtc_hours_p1   <= S_rtc_hours;
-            S_rtc_hours_p2   <= S_rtc_hours_p1;
             S_rtc_minutes_p1 <= S_rtc_minutes;
-            S_rtc_minutes_p2 <= S_rtc_minutes_p1;
             S_rtc_seconds_p1 <= S_rtc_seconds;
-            S_rtc_seconds_p2 <= S_rtc_seconds_p1;
+            S_rtc_count_p1 <= S_rtc_read_count[15:0];
+            S_rtc_count_p2 <= S_rtc_count_p1;
+            S_rtc_count_p3 <= S_rtc_count_p2;
+            // Time is held for a second in the source clock domain. The
+            // synchronized completion counter reaches this capture after
+            // the complete time bundle has had two extra clocks to settle.
+            if(S_rtc_count_p3 != S_rtc_count_seen) begin
+                S_rtc_count_seen <= S_rtc_count_p3;
+                S_rtc_hours_p2 <= S_rtc_hours_p1;
+                S_rtc_minutes_p2 <= S_rtc_minutes_p1;
+                S_rtc_seconds_p2 <= S_rtc_seconds_p1;
+            end
             S_rtc_valid_p1   <= S_rtc_valid;
             S_rtc_valid_p2   <= S_rtc_valid_p1;
             S_rtc_error_p1   <= S_rtc_error;
@@ -1218,7 +1252,20 @@ assign S_raw_tuser  = S_axis_tuser;
 //  );
 
 
-//ISP算法顶层模块
+// ISP algorithm top level.  The image algorithm now follows the _9 project:
+// frame-level AWB -> chroma coring -> saturation boost -> linear-domain
+// downscale -> gamma/brightness.  The controls are deliberately fixed here
+// for the first integration pass so the existing MCU/USB/RTC/servo control
+// paths remain untouched.  They can be exposed through the current APB menu
+// after the pixel and resource checks pass.
+wire [7:0] S_isp_stat_sat_pre;
+wire [7:0] S_isp_stat_sat_post;
+wire [7:0] S_isp_stat_mean_r;
+wire [7:0] S_isp_stat_mean_g;
+wire [7:0] S_isp_stat_mean_b;
+wire [7:0] S_isp_stat_min_r;
+wire       S_isp_stat_frm_tgl;
+
 isp_top u_isp_top (
 .axi4s_video_aclk(S_csi_rx_clk),
 .I_rst_n         (S_rst_n),
@@ -1232,8 +1279,53 @@ isp_top u_isp_top (
 .O_tlast         (S_ISP_O_tlast ),
 .O_tuser         (S_ISP_O_tuser ),
 .O_tvalid        (S_ISP_O_tvalid),
+.I_awb_bypass    (1'b0),
+.I_blc_off       (8'd16),
+.I_gamma_en      (1'b1),
+.I_bright        (2'd3),
+.I_core_sel      (3'd0),
+.I_awb_gate_en   (1'b0),
+.I_awb_gate_th   (8'd32),
+.I_awb_smooth_en (1'b0),
+.I_sat_off       (1'b0),
+.O_stat_sat_pre  (S_isp_stat_sat_pre),
+.O_stat_sat_post (S_isp_stat_sat_post),
+.O_stat_mean_r   (S_isp_stat_mean_r),
+.O_stat_mean_g   (S_isp_stat_mean_g),
+.O_stat_mean_b   (S_isp_stat_mean_b),
+.O_stat_min_r    (S_isp_stat_min_r),
+.O_stat_frm_tgl  (S_isp_stat_frm_tgl),
 .I_tready        ()
   );
+
+    // ISP statistics are produced in the MIPI clock domain.  Transfer the
+    // stable per-frame values with the same toggle protocol used by _9 rather
+    // than feeding an asynchronous multi-bit bus directly into the OSD.
+    always @(posedge S_hdmi_pixel_clk or negedge S_hdmi_rst_n) begin
+        if(!S_hdmi_rst_n) begin
+            S_isp_stat_t1      <= 1'b0;
+            S_isp_stat_t2      <= 1'b0;
+            S_isp_stat_t3      <= 1'b0;
+            S_isp_sat_pre_hdmi <= 8'd0;
+            S_isp_sat_post_hdmi<= 8'd0;
+            S_isp_mean_r_hdmi  <= 8'd0;
+            S_isp_mean_g_hdmi  <= 8'd0;
+            S_isp_mean_b_hdmi  <= 8'd0;
+            S_isp_min_r_hdmi   <= 8'd0;
+        end else begin
+            S_isp_stat_t1 <= S_isp_stat_frm_tgl;
+            S_isp_stat_t2 <= S_isp_stat_t1;
+            S_isp_stat_t3 <= S_isp_stat_t2;
+            if(S_isp_stat_t2 ^ S_isp_stat_t3) begin
+                S_isp_sat_pre_hdmi  <= S_isp_stat_sat_pre;
+                S_isp_sat_post_hdmi <= S_isp_stat_sat_post;
+                S_isp_mean_r_hdmi   <= S_isp_stat_mean_r;
+                S_isp_mean_g_hdmi   <= S_isp_stat_mean_g;
+                S_isp_mean_b_hdmi   <= S_isp_stat_mean_b;
+                S_isp_min_r_hdmi    <= S_isp_stat_min_r;
+            end
+        end
+    end
 
 
     video_in u_video_in(
@@ -1377,6 +1469,31 @@ isp_top u_isp_top (
         .O_vtc_last    ( S_hdmi_last      )
     );
 
+    // Match video_out's one-cycle read latency before entering the _9
+    // 3x3 line-buffer branch.  The branch is enabled only for recognition
+    // modes; normal display modes receive a delay-only output from it.
+    always @(posedge S_hdmi_pixel_clk or negedge S_hdmi_rst_n) begin
+        if(!S_hdmi_rst_n)
+            S_video_de_1d <= 1'b0;
+        else
+            S_video_de_1d <= S_hdmi_window_rd_en;
+    end
+
+    rgb24_denoise u_rgb24_denoise_9 (
+        .I_clk         (S_hdmi_pixel_clk),
+        .I_rst_n       (S_hdmi_rst_n),
+        .I_sel         (S_dbg_recog_mode ? 4'd9 : 4'd0),
+        .I_tone        (2'd0),
+        .I_vsync       (S_hdmi_vsync),
+        .I_de          (S_video_de_1d),
+        .I_data        (S_video_rd_data),
+        .O_de          (S_video_dn_de),
+        .O_data        (S_video_dn_data),
+        .O_noise       (S_dn_noise),
+        .O_mean_y      (S_dn_mean_y),
+        .O_smooth_data (S_shape_input_data)
+    );
+
     // Image mode/effect/target/logo are supplied by the MCU APB menu.  The
     // former FPGA-side dbg_ctrl and its second key debouncer are intentionally
     // removed so all four physical buttons have one owner.
@@ -1395,8 +1512,8 @@ isp_top u_isp_top (
         .I_vsync    ( S_hdmi_vsync ),
         .I_hsync    ( S_hdmi_hsync ),
         .I_user     ( S_hdmi_user ),
-        .I_de       ( S_hdmi_window_rd_en ),
-        .I_data     ( S_video_rd_data ),
+        .I_de       ( S_video_dn_de ),
+        .I_data     ( S_shape_input_data ),
         .I_enable   ( S_dbg_recog_mode && (S_dbg_step == 3'd3) ),
         .O_valid    ( S_shape_valid ),
         .O_type     ( S_shape_type ),
@@ -1414,8 +1531,8 @@ isp_top u_isp_top (
         .I_clk      ( S_hdmi_pixel_clk ),
         .I_rst_n    ( S_hdmi_rst_n ),
         .I_user     ( S_hdmi_user ),
-        .I_de       ( S_hdmi_window_rd_en ),
-        .I_data     ( S_video_rd_data ),
+        .I_de       ( S_video_dn_de ),
+        .I_data     ( S_video_dn_data ),
         .I_enable   ( S_dbg_recog_mode && (S_dbg_step == 3'd4) ),
         .I_target_mode ( S_motion_target ),
         .O_valid    ( S_motion_valid ), .O_count ( S_motion_count ),
@@ -1437,8 +1554,8 @@ isp_top u_isp_top (
         .I_clk      ( S_hdmi_pixel_clk ),
         .I_rst_n    ( S_hdmi_rst_n ),
         .I_user     ( S_hdmi_user ),
-        .I_de       ( S_hdmi_window_rd_en ),
-        .I_data     ( S_video_rd_data ),
+        .I_de       ( S_video_dn_de ),
+        .I_data     ( S_video_dn_data ),
         .I_enable   ( S_dbg_recog_mode && (S_dbg_step == 3'd4) ),
         .O_valid    ( S_color_valid ), .O_color ( S_color_code ),
         .O_count    ( S_color_count ),
@@ -1456,8 +1573,8 @@ isp_top u_isp_top (
         .I_enable    ( S_dbg_recog_mode && (S_dbg_step == 3'd5) ),
         .I_reacquire ( S_track_reacquire ),
         .I_user      ( S_hdmi_user ),
-        .I_de        ( S_hdmi_window_rd_en ),
-        .I_data      ( S_video_rd_data ),
+        .I_de        ( S_video_dn_de ),
+        .I_data      ( S_shape_input_data ),
         .O_new_result (S_track_new), .O_valid (S_track_valid),
         .O_state     (S_track_state),
         .O_x0 (S_track_x0), .O_y0 (S_track_y0),
@@ -1492,9 +1609,14 @@ isp_top u_isp_top (
         .I_recog_mode    ( S_dbg_recog_mode ),
         .I_logo_enable   ( S_logo_enable ),
         .I_motion_target ( S_motion_target ),
-        .I_dbg_sat_pre   ( 8'd0 ), .I_dbg_sat_post ( 8'd0 ),
-        .I_dbg_mean_r    ( 8'd0 ), .I_dbg_mean_g (8'd0), .I_dbg_mean_b (8'd0),
-        .I_dbg_min_r     ( 8'd0 ), .I_dbg_noise (8'd0), .I_dbg_mean_y (8'd0),
+        .I_dbg_sat_pre   ( S_isp_sat_pre_hdmi ),
+        .I_dbg_sat_post  ( S_isp_sat_post_hdmi ),
+        .I_dbg_mean_r    ( S_isp_mean_r_hdmi ),
+        .I_dbg_mean_g    ( S_isp_mean_g_hdmi ),
+        .I_dbg_mean_b    ( S_isp_mean_b_hdmi ),
+        .I_dbg_min_r     ( S_isp_min_r_hdmi ),
+        .I_dbg_noise     ( S_dn_noise ),
+        .I_dbg_mean_y    ( S_dn_mean_y ),
         .I_shape_valid   ( S_shape_valid ), .I_shape_type (S_shape_type),
         .I_shape_x0      ( S_shape_x0 ), .I_shape_y0 (S_shape_y0),
         .I_shape_x1      ( S_shape_x1 ), .I_shape_y1 (S_shape_y1),
@@ -1524,16 +1646,73 @@ isp_top u_isp_top (
         .O_hdmi_vsync    ( S_hdmi_out_vsync   ),
         .O_hdmi_hsync    ( S_hdmi_out_hsync   ),
         .O_hdmi_de       ( S_hdmi_out_de      ),
-        .O_hdmi_data     ( S_hdmi_out_data    )
+        .O_hdmi_data     ( S_hdmi_out_data    ),
+        .O_base_data     ( S_hdmi_base_data   ),
+        .O_overlay_valid ( S_hdmi_overlay_valid )
+    );
+
+    // _9 style effect chain: process camera pixels only, then restore the
+    // mixer OSD colors through video_overlay_final.  This keeps the current
+    // recognition/menu/RTC OSD visible while replacing the old adjacent-pixel
+    // edge effect with the spatial Sobel implementation.
+    image_filter u_image_filter_9 (
+        .I_clk    (S_hdmi_pixel_clk),
+        .I_rst_n  (S_hdmi_rst_n),
+        .I_vsync  (S_hdmi_out_vsync),
+        .I_hsync  (S_hdmi_out_hsync),
+        .I_de     (S_hdmi_out_de),
+        .I_data   (S_hdmi_base_data),
+        .I_mode   ((S_dbg_effect_sel <= 3'd4) ? S_dbg_effect_sel : 3'd0),
+        .O_vsync  (S_effect_vsync),
+        .O_hsync  (S_effect_hsync),
+        .O_de     (S_effect_de),
+        .O_data   (S_effect_data)
+    );
+
+    sobel_edge #(
+        .IMG_WIDTH  (`DISPLAY_WIDTH),
+        .IMG_HEIGHT (`DISPLAY_HEIGHT),
+        .H_TOTAL    (`HDMI_H_TOTAL),
+        .THRESHOLD  (11'd60),
+        .EDGE_WHITE (1)
+    ) u_sobel_edge_9 (
+        .I_clk       (S_hdmi_pixel_clk),
+        .I_rst_n     (S_hdmi_rst_n),
+        .I_sobel_en  (S_dbg_effect_sel == 3'd5),
+        .I_vsync     (S_effect_vsync),
+        .I_hsync     (S_effect_hsync),
+        .I_de        (S_effect_de),
+        .I_data      (S_effect_data),
+        .O_vsync     (S_edge_vsync),
+        .O_hsync     (S_edge_hsync),
+        .O_de        (S_edge_de),
+        .O_data      (S_edge_data),
+        .O_edge      (S_edge_flag),
+        .O_gray      (S_edge_gray)
+    );
+
+    video_overlay_final #(.EFFECT_LATENCY(5)) u_video_overlay_final_9 (
+        .I_clk            (S_hdmi_pixel_clk),
+        .I_rst_n          (S_hdmi_rst_n),
+        .I_overlay_valid  (S_hdmi_overlay_valid),
+        .I_overlay_color  (S_hdmi_out_data),
+        .I_vsync          (S_edge_vsync),
+        .I_hsync          (S_edge_hsync),
+        .I_de             (S_edge_de),
+        .I_data           (S_edge_data),
+        .O_vsync          (S_final_vsync),
+        .O_hsync          (S_final_hsync),
+        .O_de             (S_final_de),
+        .O_data           (S_final_data)
     );
 
     // Use the camera image before OSD overlay for contrast autofocus.
     focus_metric u_focus_metric (
         .I_clk          ( S_hdmi_pixel_clk ),
         .I_rst_n        ( S_hdmi_rst_n ),
-        .I_vsync        ( S_hdmi_out_vsync ),
-        .I_de           ( S_hdmi_out_de ),
-        .I_data         ( S_hdmi_out_data ),
+        .I_vsync        ( S_final_vsync ),
+        .I_de           ( S_final_de ),
+        .I_data         ( S_final_data ),
         .O_metric       ( S_focus_metric_pix ),
         .O_frame_toggle ( S_focus_frame_toggle )
     );
@@ -1544,10 +1723,10 @@ isp_top u_isp_top (
     ) u_ui_osd (
         .I_clk          ( S_hdmi_pixel_clk ),
         .I_rst_n        ( S_hdmi_rst_n ),
-        .I_vsync        ( S_hdmi_out_vsync ),
-        .I_hsync        ( S_hdmi_out_hsync ),
-        .I_de           ( S_hdmi_out_de ),
-        .I_data         ( S_hdmi_out_data ),
+        .I_vsync        ( S_final_vsync ),
+        .I_hsync        ( S_final_hsync ),
+        .I_de           ( S_final_de ),
+        .I_data         ( S_final_data ),
         .I_menu_enable  ( S_ui_enable_p2 ),
         .I_edit_enable  ( S_ui_edit_p2 ),
         .I_info_enable  ( S_ui_info_p2 ),

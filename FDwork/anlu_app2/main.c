@@ -379,8 +379,11 @@ static void touchscreen_handle(MenuState *s)
     TouchEvent event;
     if(max3421e_touch_pop(&event)) {
         MenuState old = *s;
-        unsigned actions = touch_servo_apply(s, &event);
-        actions |= menu_touch(s, &event);
+        /* Menu/AF hit-testing gets first ownership.  Only an unclaimed touch
+         * starts or updates the relative servo drag. */
+        unsigned actions = menu_touch(s, &event);
+        if(!(actions & MENU_AF))
+            actions |= touch_servo_apply(s, &event);
         menu_commit(s, &old, actions);
     }
 }

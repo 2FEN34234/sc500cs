@@ -4,7 +4,7 @@
    Executable = F:/AnlogicFpga/TD_6.2.1_Engineer_6.2.168.116/bin/run.exe
    Built at =   16:32:07 Jun 12 2025
    Run by =     pc
-   Run Date =   Sat Oct 10 19:56:47 2026
+   Run Date =   Tue Oct 13 15:47:30 2026
 
    Run on =     CIRBUG
 ============================================================
@@ -16,9 +16,9 @@ ARC-1001 : ----------------------------------------------------------------
 ARC-1001 :   non_jtag_persist(none)  |        35 IOs         |    gpio    
 ARC-1001 :            jtag           |  P13/P15/L14/R13/T13  |  dedicate  
 ARC-1001 : ----------------------------------------------------------------
-RUN-1003 : finish command "import_device ph1_35p.db -package PH1P35MDG324 -speed 3" in  2.330617s wall, 1.968750s user + 0.156250s system = 2.125000s CPU (91.2%)
+RUN-1003 : finish command "import_device ph1_35p.db -package PH1P35MDG324 -speed 3" in  3.424699s wall, 2.812500s user + 0.171875s system = 2.984375s CPU (87.1%)
 
-RUN-1004 : used memory is 323 MB, reserved memory is 321 MB, peak memory is 323 MB
+RUN-1004 : used memory is 330 MB, reserved memory is 321 MB, peak memory is 330 MB
 RUN-1002 : start command "open_project camera_to_dsi_display.prj"
 RUN-1002 : start command "commit_param -step design"
 RUN-1002 : start command "set_param flow thread 32"
@@ -233,7 +233,6 @@ HDL-1007 : analyze verilog file ../../../user_source/hdl_source/mipi_dphy_rx/cha
 HDL-1007 : back to file '../../../user_source/hdl_source/mipi_dphy_rx/channel_aligner_wrapper.enc.sv' in ../../../user_source/hdl_source/mipi_dphy_rx/channel_aligner_wrapper.enc.sv(17)
 HDL-1007 : analyze verilog file ../../../user_source/hdl_source/mipi_dphy_rx/hs_detect.enc.v
 HDL-1007 : back to file '../../../user_source/hdl_source/mipi_dphy_rx/hs_detect.enc.v' in ../../../user_source/hdl_source/mipi_dphy_rx/hs_detect.enc.v(13)
-HDL-1007 : analyze verilog file ../../../user_source/hdl_source/signal_delay.v
 HDL-1007 : analyze verilog file ../../../user_source/hdl_source/awb.v
 HDL-1007 : analyze verilog file ../../../user_source/hdl_source/ph1p35_ddr/ph1p35_324_ddr_wrapper.v
 HDL-1007 : undeclared symbol 'dhi_clk', assumed default net type 'wire' in ../../../user_source/hdl_source/ph1p35_ddr/ph1p35_324_ddr_wrapper.v(83)
@@ -256,7 +255,6 @@ HDL-1007 : analyze verilog file ../../../user_source/hdl_source/isp/data128_96/d
 HDL-1007 : analyze verilog file ../../../user_source/hdl_source/isp/data96_128/data96_128.v
 HDL-1007 : analyze verilog file ../../../user_source/hdl_source/uics500_cfg/SC500GainTbl.v
 HDL-1007 : analyze verilog file ../../../user_source/hdl_source/uics500_cfg/uicfgcs500.v
-HDL-1007 : undeclared symbol 'iic_busy', assumed default net type 'wire' in ../../../user_source/hdl_source/uics500_cfg/uicfgcs500.v(141)
 HDL-1007 : analyze verilog file ../../../user_source/hdl_source/uics500_cfg/uics500reg.v
 HDL-1007 : analyze verilog file ../../../user_source/hdl_source/uics500_cfg/uics500regAE.v
 HDL-1007 : analyze verilog file ../../../user_source/hdl_source/uics500_cfg/uii2c.v
@@ -284,6 +282,7 @@ HDL-1007 : analyze verilog file ../../../user_source/hdl_source/mcu_ui_apb_regs.
 HDL-1007 : analyze verilog file ../../../user_source/hdl_source/ui_osd.v
 HDL-1007 : analyze verilog file ../../../user_source/hdl_source/focus_metric.v
 HDL-1007 : analyze verilog file ../../../user_source/hdl_source/lens_i2c_ctrl.v
+HDL-1007 : analyze verilog file ../../../user_source/hdl_source/ds3231_i2c_ctrl.v
 HDL-1007 : analyze verilog file ../../../user_source/hdl_source/servo_pwm_2ch.v
 HDL-1007 : analyze verilog file ../../../user_source/hdl_source/hdmi_mixer_image9.v
 HDL-1007 : analyze included file ../../../user_source/hdl_source/video_params.vh in ../../../user_source/hdl_source/hdmi_mixer_image9.v(13)
@@ -295,10 +294,12 @@ HDL-1007 : analyze verilog file ../../../user_source/hdl_source/image_features_9
 HDL-1007 : analyze included file ../../../user_source/hdl_source/video_params.vh in ../../../user_source/hdl_source/image_features_99.v(1)
 HDL-1007 : back to file '../../../user_source/hdl_source/image_features_99.v' in ../../../user_source/hdl_source/image_features_99.v(1)
 HDL-1007 : analyze verilog file ../../../user_source/hdl_source/red_target_tracker.v
-PRJ-1401 : Successfully analyzed 96 source files.
-RUN-1003 : finish command "open_project camera_to_dsi_display.prj" in  1.852200s wall, 1.656250s user + 0.156250s system = 1.812500s CPU (97.9%)
+HDL-1007 : analyze verilog file ../../../user_source/hdl_source/rgb24_denoise_9.v
+HDL-1007 : analyze verilog file ../../../user_source/hdl_source/image_effects_9.v
+PRJ-1401 : Successfully analyzed 98 source files.
+RUN-1003 : finish command "open_project camera_to_dsi_display.prj" in  1.808810s wall, 1.343750s user + 0.218750s system = 1.562500s CPU (86.4%)
 
-RUN-1004 : used memory is 341 MB, reserved memory is 333 MB, peak memory is 341 MB
+RUN-1004 : used memory is 336 MB, reserved memory is 321 MB, peak memory is 336 MB
 RUN-1002 : start command "commit_param -step design"
 RUN-1002 : start command "set_param flow thread 32"
 RUN-1001 : Print Global Property
@@ -321,8 +322,8 @@ RUN-1001 :   default_reg_initial  |    auto    |       auto       |
 RUN-1001 :    hdl_warning_level   |   normal   |      normal      |        
 RUN-1001 : ----------------------------------------------------------------
 RUN-1002 : start command "elaborate -top design_top_wrapper"
-HDL-1007 : port 'O_csi_hs' remains unconnected for this instance in ../../../user_source/hdl_source/design_top_wrapper.v(1069)
-HDL-1007 : port 'IO_ddc_sda' remains unconnected for this instance in ../../../user_source/hdl_source/design_top_wrapper.v(1490)
+HDL-1007 : port 'O_csi_hs' remains unconnected for this instance in ../../../user_source/hdl_source/design_top_wrapper.v(1178)
+HDL-1007 : port 'IO_ddc_sda' remains unconnected for this instance in ../../../user_source/hdl_source/design_top_wrapper.v(1750)
 HDL-1007 : elaborate module design_top_wrapper in ../../../user_source/hdl_source/design_top_wrapper.v(5)
 HDL-1007 : elaborate module key_remove_shakes in ../../../user_source/hdl_source/key_remove_shakes.v(12)
 HDL-1007 : elaborate module PLL in ../../../user_source/ip_source/PLL/PLL.v(24)
@@ -344,22 +345,24 @@ HDL-1007 : elaborate module PH1P_PHY_MCU(MCU_JTAG_SEL="0",MCU_RESET_VECTOR=32'b0
 HDL-1007 : elaborate module PH1P_LOGIC_QSPI2MCU in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/ph1p_macro.v(8261)
 HDL-5317 WARNING: input port 'dft_jtag_tck' is not connected on this instance in ../../al_ip/RISCV_F6F1D1P0_0/RTL/MCU_521bd43d073e.v(126)
 HDL-1007 : elaborate module lens_i2c_ctrl in ../../../user_source/hdl_source/lens_i2c_ctrl.v(3)
-HDL-1007 : elaborate module lens_i2c_master in ../../../user_source/hdl_source/lens_i2c_ctrl.v(86)
+HDL-1007 : elaborate module lens_i2c_master in ../../../user_source/hdl_source/lens_i2c_ctrl.v(87)
+HDL-1007 : elaborate module ds3231_i2c_ctrl(CLK_DIV=499) in ../../../user_source/hdl_source/ds3231_i2c_ctrl.v(7)
+HDL-1007 : elaborate module lens_i2c_master(SLAVE_ADDR=7'b1101000) in ../../../user_source/hdl_source/lens_i2c_ctrl.v(87)
 HDL-1007 : elaborate module servo_pwm_2ch in ../../../user_source/hdl_source/servo_pwm_2ch.v(7)
 HDL-1007 : elaborate module mcu_ui_apb_regs in ../../../user_source/hdl_source/mcu_ui_apb_regs.v(4)
 HDL-1007 : elaborate module ae_set in ../../../user_source/hdl_source/uiisp_beta/ae_set.v(33)
-HDL-1007 : port 'O_iic_bus_error' remains unconnected for this instance in ../../../user_source/hdl_source/uics500_cfg/uicfgcs500.v(123)
-HDL-1007 : port 'IO_iic_sda_dg' remains unconnected for this instance in ../../../user_source/hdl_source/uics500_cfg/uicfgcs500.v(123)
-HDL-1007 : port 'O_wr_ack_mask' remains unconnected for this instance in ../../../user_source/hdl_source/uics500_cfg/uicfgcs500.v(123)
-HDL-1007 : port 'O_first_nack_byte' remains unconnected for this instance in ../../../user_source/hdl_source/uics500_cfg/uicfgcs500.v(123)
+HDL-1007 : port 'O_iic_bus_error' remains unconnected for this instance in ../../../user_source/hdl_source/uics500_cfg/uicfgcs500.v(125)
+HDL-1007 : port 'IO_iic_sda_dg' remains unconnected for this instance in ../../../user_source/hdl_source/uics500_cfg/uicfgcs500.v(125)
+HDL-1007 : port 'O_wr_ack_mask' remains unconnected for this instance in ../../../user_source/hdl_source/uics500_cfg/uicfgcs500.v(125)
+HDL-1007 : port 'O_first_nack_byte' remains unconnected for this instance in ../../../user_source/hdl_source/uics500_cfg/uicfgcs500.v(125)
 HDL-1007 : elaborate module uicfgcs500(CLK_DIV=239) in ../../../user_source/hdl_source/uics500_cfg/uicfgcs500.v(37)
 HDL-1007 : elaborate module uii2c(WMEN_LEN=4,RMEN_LEN=1,CLK_DIV=239) in ../../../user_source/hdl_source/uics500_cfg/uii2c.v(41)
 HDL-1007 : elaborate module uics500reg in ../../../user_source/hdl_source/uics500_cfg/uics500reg.v(35)
-HDL-5007 WARNING: actual bit length 24 differs from formal bit length 32 for port 'REG_DATA' in ../../../user_source/hdl_source/uics500_cfg/uicfgcs500.v(150)
+HDL-5007 WARNING: actual bit length 24 differs from formal bit length 32 for port 'REG_DATA' in ../../../user_source/hdl_source/uics500_cfg/uicfgcs500.v(152)
 HDL-1007 : elaborate module SC500GainTbl in ../../../user_source/hdl_source/uics500_cfg/SC500GainTbl.v(6)
-HDL-5007 WARNING: actual bit length 32 differs from formal bit length 7 for port 'I' in ../../../user_source/hdl_source/uics500_cfg/uicfgcs500.v(154)
+HDL-5007 WARNING: actual bit length 32 differs from formal bit length 7 for port 'I' in ../../../user_source/hdl_source/uics500_cfg/uicfgcs500.v(156)
 HDL-1007 : elaborate module uics500regAE in ../../../user_source/hdl_source/uics500_cfg/uics500regAE.v(33)
-HDL-5007 WARNING: actual bit length 24 differs from formal bit length 32 for port 'REG_DATA' in ../../../user_source/hdl_source/uics500_cfg/uicfgcs500.v(160)
+HDL-5007 WARNING: actual bit length 24 differs from formal bit length 32 for port 'REG_DATA' in ../../../user_source/hdl_source/uics500_cfg/uicfgcs500.v(162)
 HDL-1007 : elaborate module mipi_dphy_rx_ph1p_mipiio_wrapper(HS_VGA_GAIN="8dB",LANE_NUM=2) in ../../../user_source/hdl_source/mipi_dphy_rx/mipi_dphy_rx_ph1p_mipiio_wrapper.sv(4)
 HDL-1007 : elaborate module channel_aligner_wrapper(CH_NUM=2) in ../../../user_source/hdl_source/mipi_dphy_rx/channel_aligner_wrapper.enc.sv(3)
 HDL-1007 : elaborate module channel_aligner in ../../../user_source/hdl_source/mipi_dphy_rx/channel_aligner.enc.v(3)
@@ -368,7 +371,7 @@ HDL-1007 : elaborate module byte_aligner in ../../../user_source/hdl_source/mipi
 HDL-1007 : elaborate module ph1p_mipiio_rx_wrapper(HS_VGA_GAIN="8dB",LANE_NUM=2) in ../../../user_source/hdl_source/mipi_dphy_rx/ph1p_mipiio_rx_wrapper.v(4)
 HDL-1007 : elaborate module hs_detect in ../../../user_source/hdl_source/mipi_dphy_rx/hs_detect.enc.v(3)
 HDL-1007 : elaborate module PH1P_LOGIC_DPHY_MIPI_RX(CK_HS_VGA_GAIN="8dB",L0_HS_SLAVE_DESER_CLK_OFFSET="0ps",L0_HS_VGA_GAIN="8dB",L1_HS_SLAVE_DESER_CLK_OFFSET="0ps",L1_HS_VGA_GAIN="8dB",L2_HS_SLAVE_DESER_CLK_OFFSET="0ps",L2_HS_VGA_GAIN="8dB",L3_HS_SLAVE_DESER_CLK_OFFSET="0ps",L3_HS_VGA_GAIN="8dB") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/ph1p_macro.v(2017)
-HDL-5007 WARNING: actual bit length 4 differs from formal bit length 2 for port 'I_lane_invert' in ../../../user_source/hdl_source/design_top_wrapper.v(1037)
+HDL-5007 WARNING: actual bit length 4 differs from formal bit length 2 for port 'I_lane_invert' in ../../../user_source/hdl_source/design_top_wrapper.v(1146)
 HDL-1007 : elaborate module csi_unpacket_2lane in ../../../user_source/hdl_source/isp/csi_unpacket_2lane.v(36)
 HDL-1007 : elaborate module raw10_unpacket_2lane in ../../../user_source/hdl_source/isp/raw10_unpacket_2lane.v(33)
 HDL-1007 : elaborate module uial2axis(IMG_WIDTH=2592,IMG_HEIGHT=1944,INPUT_DATA_WIDTH=40) in ../../../user_source/hdl_source/isp/uial2axis.v(10)
@@ -391,81 +394,20 @@ HDL-1007 : elaborate module PH1P_LOGIC_ERAM(DATA_WIDTH_A=33,DATA_WIDTH_B=33,ADDR
 HDL-5323 WARNING: input port 'dib[32]' remains unconnected for this instance in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/line_buffer_demosaic.v(98)
 HDL-1007 : elaborate module bilinear_interpolation in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/bilinear_interpolation.v(22)
 HDL-1007 : elaborate module data128_96 in ../../../user_source/hdl_source/isp/data128_96/data128_96.v(10)
-HDL-1007 : port 'remainder' remains unconnected for this instance in ../../../user_source/hdl_source/awb.v(165)
-HDL-1007 : port 'remainder' remains unconnected for this instance in ../../../user_source/hdl_source/awb.v(175)
-HDL-1007 : elaborate module awb(IMG_HEIGHT=1944,IMG_WIDTH=2592) in ../../../user_source/hdl_source/awb.v(20)
-HDL-1007 : elaborate module divider in ../../../user_source/ip_source/divider/divider_gate.v(5)
-HDL-1007 : elaborate module AL_DFF_X in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(277)
-HDL-1007 : elaborate module AL_MAP_LUT5(INIT=32'b10000000100000000000000010000000,EQN="(C*B*A*~(~E*D))") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(13)
-HDL-1007 : elaborate module AL_MAP_LUT6(INIT=64'b01,EQN="(~F*~E*~D*~C*~B*~A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(2)
-HDL-1007 : elaborate module AL_MAP_LUT6(INIT=64'b01000,EQN="(~F*~E*~D*~C*B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(2)
-HDL-1007 : elaborate module AL_MAP_LUT5(INIT=32'b01111111111111110000000000000000,EQN="(E*~(D*C*B*A))") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(13)
-HDL-1007 : elaborate module AL_MAP_LUT2(INIT=4'b010,EQN="(~B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(48)
-HDL-1007 : elaborate module AL_MAP_LUT3(INIT=8'b010,EQN="(~C*~B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(36)
-HDL-1007 : elaborate module AL_MAP_ADDER(ALUTYPE="SUB_CARRY") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(72)
-HDL-1007 : elaborate module AL_MAP_ADDER(ALUTYPE="SUB") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(72)
-HDL-1007 : elaborate module AL_MAP_LUT3(INIT=8'b11011000,EQN="(C*~(B)*~(A)+C*B*~(A)+~(C)*B*A+C*B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(36)
-HDL-1007 : elaborate module AL_MAP_LUT4(INIT=16'b01,EQN="(~D*~C*~B*~A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(24)
-HDL-1007 : elaborate module AL_MAP_LUT4(INIT=16'b1000000000000000,EQN="(D*C*B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(24)
-HDL-1007 : elaborate module AL_MAP_LUT6(INIT=64'b010000000,EQN="(~F*~E*~D*C*B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(2)
-HDL-1007 : elaborate module AL_MAP_LUT5(INIT=32'b010000000,EQN="(~E*~D*C*B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(13)
-HDL-1007 : elaborate module AL_MAP_LUT4(INIT=16'b010000000,EQN="(~D*C*B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(24)
-HDL-1007 : elaborate module AL_MAP_LUT3(INIT=8'b10000000,EQN="(C*B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(36)
-HDL-1007 : elaborate module AL_MAP_LUT5(INIT=32'b01,EQN="(~E*~D*~C*~B*~A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(13)
-HDL-1007 : elaborate module AL_MAP_LUT5(INIT=32'b01000,EQN="(~E*~D*~C*B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(13)
-HDL-1007 : elaborate module AL_MAP_LUT4(INIT=16'b01000,EQN="(~D*~C*B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(24)
-HDL-1007 : elaborate module AL_MAP_LUT3(INIT=8'b01000,EQN="(~C*B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(36)
-HDL-1007 : elaborate module AL_MAP_LUT6(INIT=64'b1000100010001000000010001000100000000000100010000000000000001000,EQN="(B*A*(~(D)*~((~E*C))*~(F)+~(D)*~((~E*C))*F+D*~((~E*C))*F+~(D)*(~E*C)*F))") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(2)
-HDL-1007 : elaborate module AL_MAP_LUT6(INIT=64'b0111111101111111000000001000000011111111011111110000000000000000,EQN="(~((C*B*A))*~(D)*E*~(F)+~((C*B*A))*D*E*~(F)+(C*B*A)*D*E*~(F)+(C*B*A)*~(D)*~(E)*F+~((C*B*A))*~(D)*E*F+~((C*B*A))*D*E*F)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(2)
-HDL-1007 : elaborate module AL_MAP_LUT6(INIT=64'b0111011111111111111101110111111100000000000000000000000000000000,EQN="(F*~(B*A*(D@(~E*C))))") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(2)
-HDL-1007 : elaborate module AL_MAP_LUT2(INIT=4'b1000,EQN="(B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(48)
-HDL-1007 : elaborate module AL_MAP_LUT6(INIT=64'b010,EQN="(~F*~E*~D*~C*~B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(2)
-HDL-1007 : elaborate module AL_MAP_LUT5(INIT=32'b010,EQN="(~E*~D*~C*~B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(13)
-HDL-1007 : elaborate module AL_MAP_LUT4(INIT=16'b010,EQN="(~D*~C*~B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(24)
-HDL-1007 : elaborate module AL_MAP_LUT3(INIT=8'b01,EQN="(~C*~B*~A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(36)
-HDL-1007 : elaborate module AL_MAP_LUT2(INIT=4'b0100,EQN="(B*~A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(48)
-HDL-1007 : elaborate module AL_MAP_LUT2(INIT=4'b01,EQN="(~B*~A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(48)
-HDL-1007 : elaborate module AL_MAP_LUT6(INIT=64'b1000000000000000000000000000000000000000000000000000000000000000,EQN="(F*E*D*C*B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(2)
-HDL-1007 : elaborate module AL_MAP_LUT4(INIT=16'b1011111101000000,EQN="(D@(C*B*~A))") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(24)
-HDL-1007 : elaborate module AL_MAP_LUT5(INIT=32'b10000000111000001111100011111110,EQN="(A*~(B)*~(C)*~(D)*~(E)+~(A)*B*~(C)*~(D)*~(E)+A*B*~(C)*~(D)*~(E)+~(A)*~(B)*C*~(D)*~(E)+A*~(B)*C*~(D)*~(E)+~(A)*B*C*~(D)*~(E)+A*B*C*~(D)*~(E)+A*B*~(C)*D*~(E)+~(A)*~(B)*C*D*~(E)+A*~(B)*C*D*~(E)+~(A)*B*C*D*~(E)+A*B*C*D*~(E)+A*~(B)*C*~(D)*E+~(A)*B*C*~(D)*E+A*B*C*~(D)*E+A*B*C*D*E)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(13)
-HDL-1007 : elaborate module AL_MAP_LUT5(INIT=32'b01000000000000001000000000000000,EQN="(D*C*B*(E@A))") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(13)
-HDL-1007 : elaborate module AL_MAP_LUT6(INIT=64'b1011111111111111111111111111111101000000000000000000000000000000,EQN="(F@(E*D*C*B*~A))") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(2)
-HDL-1007 : elaborate module AL_MAP_LUT6(INIT=64'b1101010101111111111111010101011100000000000000000000000000000000,EQN="(F*~(A*~(D@(~(B)*~(C)*~(E)+~(B)*~(C)*E+B*~(C)*E+~(B)*C*E))))") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(2)
-HDL-1007 : elaborate module AL_MAP_LUT3(INIT=8'b10111000,EQN="(C*~(A)*~(B)+C*A*~(B)+~(C)*A*B+C*A*B)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(36)
-HDL-1007 : elaborate module AL_MAP_LUT3(INIT=8'b01000000,EQN="(C*B*~A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(36)
-HDL-1007 : elaborate module AL_MAP_LUT6(INIT=64'b1111111101111111001111110001111100001111000001110000001100000001,EQN="(~(B)*~(C)*~((~D*A))*~(E)*~(F)+~(B)*~(C)*~((~D*A))*E*~(F)+B*~(C)*~((~D*A))*E*~(F)+~(B)*~(C)*(~D*A)*E*~(F)+~(B)*~(C)*~((~D*A))*~(E)*F+B*~(C)*~((~D*A))*~(E)*F+~(B)*C*~((~D*A))*~(E)*F+~(B)*~(C)*(~D*A)*~(E)*F+B*~(C)*(~D*A)*~(E)*F+~(B)*~(C)*~((~D*A))*E*F+B*~(C)*~((~D*A))*E*F+~(B)*C*~((~D*A))*E*F+B*C*~((~D*A))*E*F+~(B)*~(C)*(~D*A)*E*F+B*~(C)*(~D*A)*E*F+~(B)*C*(~D*A)*E*F)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(2)
-HDL-1007 : elaborate module AL_MAP_LUT5(INIT=32'b10111111111111110100000000000000,EQN="(E@(D*C*B*~A))") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(13)
-HDL-1007 : elaborate module AL_MAP_LUT3(INIT=8'b01001101,EQN="(~(A)*~(B)*~(C)+~(A)*B*~(C)+A*B*~(C)+~(A)*B*C)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(36)
-HDL-1007 : elaborate module AL_MAP_LUT5(INIT=32'b10001000000000000000100010000000,EQN="(B*A*(D@(~E*C)))") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(13)
-HDL-1007 : elaborate module AL_MAP_LUT5(INIT=32'b11110000011110000011110000011110,EQN="(C@(B*~((~D*A))*~(E)+~(B)*(~D*A)*~(E)+B*(~D*A)*~(E)+B*(~D*A)*E))") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(13)
-HDL-1007 : elaborate module AL_MAP_LUT5(INIT=32'b01111111111101110000000000000000,EQN="(E*~(B*A*~(D@C)))") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(13)
-HDL-1007 : elaborate module AL_MAP_LUT5(INIT=32'b01000000110100001111010011111101,EQN="(~(A)*~(B)*~(C)*~(D)*~(E)+~(A)*B*~(C)*~(D)*~(E)+A*B*~(C)*~(D)*~(E)+~(A)*~(B)*C*~(D)*~(E)+A*~(B)*C*~(D)*~(E)+~(A)*B*C*~(D)*~(E)+A*B*C*~(D)*~(E)+~(A)*B*~(C)*D*~(E)+~(A)*~(B)*C*D*~(E)+A*~(B)*C*D*~(E)+~(A)*B*C*D*~(E)+A*B*C*D*~(E)+~(A)*~(B)*C*~(D)*E+~(A)*B*C*~(D)*E+A*B*C*~(D)*E+~(A)*B*C*D*E)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(13)
-HDL-1007 : elaborate module AL_MAP_LUT5(INIT=32'b10000000000000000000000000000000,EQN="(E*D*C*B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(13)
-HDL-1007 : elaborate module AL_MAP_LUT5(INIT=32'b10111111111110110100000000000100,EQN="(E@(B*~A*~(D@C)))") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(13)
-HDL-1007 : elaborate module AL_MAP_LUT6(INIT=64'b0111010111011111111101110101110100000000000000000000000000000000,EQN="(F*~(A*~(D@(B*~(C)*~(E)+~(B)*~(C)*E+B*~(C)*E+B*C*E))))") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(2)
-HDL-1007 : elaborate module AL_MAP_LUT6(INIT=64'b01000000000000000,EQN="(~F*~E*D*C*B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(2)
-HDL-1007 : elaborate module AL_MAP_LUT5(INIT=32'b01000000000000000,EQN="(~E*D*C*B*A)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/al_lmacro.v(13)
-HDL-5317 WARNING: input port 'b' is not connected on this instance in ../../../user_source/ip_source/divider/divider_gate.v(2727)
-HDL-5317 WARNING: input port 'a' is not connected on this instance in ../../../user_source/ip_source/divider/divider_gate.v(2809)
-HDL-5317 WARNING: input port 'b' is not connected on this instance in ../../../user_source/ip_source/divider/divider_gate.v(3781)
-HDL-5317 WARNING: input port 'a' is not connected on this instance in ../../../user_source/ip_source/divider/divider_gate.v(3870)
-HDL-5317 WARNING: input port 'b' is not connected on this instance in ../../../user_source/ip_source/divider/divider_gate.v(4852)
-HDL-5317 WARNING: input port 'a' is not connected on this instance in ../../../user_source/ip_source/divider/divider_gate.v(4948)
-HDL-5317 WARNING: input port 'b' is not connected on this instance in ../../../user_source/ip_source/divider/divider_gate.v(5946)
-HDL-5317 WARNING: input port 'a' is not connected on this instance in ../../../user_source/ip_source/divider/divider_gate.v(6049)
-HDL-5317 WARNING: input port 'b' is not connected on this instance in ../../../user_source/ip_source/divider/divider_gate.v(7063)
-HDL-5317 WARNING: input port 'a' is not connected on this instance in ../../../user_source/ip_source/divider/divider_gate.v(7173)
-HDL-5317 Similar messages will be suppressed.
-HDL-1007 : port 'doa' remains unconnected for this instance in ../../../user_source/hdl_source/signal_delay.v(120)
-HDL-1007 : elaborate module signal_delay(IMG_HEIGHT=1944,IMG_WIDTH=2592) in ../../../user_source/hdl_source/signal_delay.v(18)
+HDL-1007 : elaborate module awb(IMG_HEIGHT=1944,IMG_WIDTH=2592) in ../../../user_source/hdl_source/awb.v(16)
+HDL-1007 : elaborate module dbg_color_stat in ../../../user_source/hdl_source/isp/isp_top.v(739)
+HDL-1007 : elaborate module rgb96_chroma_core(FIXED_ZERO=1'b1) in ../../../user_source/hdl_source/isp/isp_top.v(1516)
+HDL-1007 : elaborate module rgb96_sat_boost in ../../../user_source/hdl_source/isp/isp_top.v(1013)
+HDL-1007 : elaborate module rgb96_gamma in ../../../user_source/hdl_source/isp/isp_top.v(1152)
+HDL-1007 : extracting RAM for identifier 'gamma_table' in ../../../user_source/hdl_source/isp/isp_top.v(1169)
+HDL-5314 WARNING: net 'gamma_table' does not have a driver in ../../../user_source/hdl_source/isp/isp_top.v(1169)
+HDL-1007 : elaborate module rgb96_downscale_crop(SRC_CROP_X=8) in ../../../user_source/hdl_source/isp/isp_top.v(307)
+HDL-5007 WARNING: case condition never applies in ../../../user_source/hdl_source/isp/isp_top.v(449)
+HDL-5007 WARNING: case condition never applies in ../../../user_source/hdl_source/isp/isp_top.v(506)
+HDL-5007 WARNING: case condition never applies in ../../../user_source/hdl_source/isp/isp_top.v(507)
 HDL-1007 : elaborate module blk_mem_gen_awb_delay_signal in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/blk_mem_gen_awb_delay_signal.v(10)
 HDL-1007 : elaborate module ram_f84573da5ab5(DATA_WIDTH_A=96,ADDR_WIDTH_A=11,DATA_DEPTH_A=2048,DATA_WIDTH_B=96,ADDR_WIDTH_B=11,DATA_DEPTH_B=2048,REGMODE_B="NOREG",WRITEMODE_B="READBEFOREWRITE") in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(3)
 HDL-1007 : elaborate module PH1P_LOGIC_ERAM(DATA_WIDTH_A=96,DATA_WIDTH_B=96,ADDR_WIDTH_A=11,ADDR_WIDTH_B=11,DATA_DEPTH_A=2048,DATA_DEPTH_B=2048,WRITEMODE_B="READBEFOREWRITE",OREGSET_A="RESET",OREGSET_B="RESET",SSROVERCE="DISABLE",ASYNC_RESET_RELEASE_A="ASYNC",ASYNC_RESET_RELEASE_B="ASYNC",IMPLEMENT="20K(FAST)") in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/ph1p_macro.v(22)
-HDL-5323 WARNING: input port 'dib[95]' remains unconnected for this instance in ../../../user_source/hdl_source/signal_delay.v(120)
-HDL-1007 : elaborate module rgb96_downscale_crop(SRC_CROP_X=8) in ../../../user_source/hdl_source/isp/isp_top.v(150)
-HDL-5007 WARNING: case condition never applies in ../../../user_source/hdl_source/isp/isp_top.v(292)
-HDL-5007 WARNING: case condition never applies in ../../../user_source/hdl_source/isp/isp_top.v(349)
-HDL-5007 WARNING: case condition never applies in ../../../user_source/hdl_source/isp/isp_top.v(350)
 HDL-1007 : elaborate module data_96bit_to_128bit in ../../../user_source/hdl_source/isp/data96_128/data96_128.v(3)
 HDL-1007 : elaborate module video_in in ../../../user_source/hdl_source/video_in.v(5)
 HDL-1007 : elaborate module w128_d512_fifo in ../../../user_source/ip_source/w128_d512_fifo/w128_d512_fifo.v(2)
@@ -492,7 +434,7 @@ HDL-5007 WARNING: actual bit length 32 differs from formal bit length 1 for port
 HDL-5007 WARNING: actual bit length 32 differs from formal bit length 1 for port 'web' in ../../../user_source/ip_source/w155_d512_fifo/soft_fifo_al_f58e8b3e1f3d.v(211)
 HDL-5007 WARNING: actual bit length 32 differs from formal bit length 9 for port 'addrb' in ../../../user_source/ip_source/w155_d512_fifo/soft_fifo_al_f58e8b3e1f3d.v(213)
 HDL-5317 WARNING: input port 'dib[154]' is not connected on this instance in ../../../user_source/ip_source/w155_d512_fifo/soft_fifo_al_f58e8b3e1f3d.v(201)
-HDL-5007 WARNING: actual bit length 16 differs from formal bit length 32 for port 'O_mc_app_wdf_mask' in ../../../user_source/hdl_source/design_top_wrapper.v(1240)
+HDL-5007 WARNING: actual bit length 16 differs from formal bit length 32 for port 'O_mc_app_wdf_mask' in ../../../user_source/hdl_source/design_top_wrapper.v(1407)
 HDL-1007 : port 'apb_pready' remains unconnected for this instance in ../../../user_source/hdl_source/ph1p35_ddr/ph1p35_324_ddr_wrapper.v(78)
 HDL-1007 : port 'apb_prdata' remains unconnected for this instance in ../../../user_source/hdl_source/ph1p35_ddr/ph1p35_324_ddr_wrapper.v(78)
 HDL-1007 : port 'cfg_rst_n' remains unconnected for this instance in ../../../user_source/hdl_source/ph1p35_ddr/ph1p35_324_ddr_wrapper.v(78)
@@ -578,7 +520,6 @@ HDL-5317 WARNING: input port 'dl_in' is not connected on this instance in ../../
 HDL-5007 WARNING: actual bit length 2 differs from formal bit length 1 for port 'dx_rfifo_en' in ../../../user_source/hdl_source/ph1p35_ddr/ddr2/src/rtl/phy/ph1p_ddrphy.v(620)
 HDL-5314 WARNING: net 'dx2_wdata[103]' does not have a driver in ../../../user_source/hdl_source/ph1p35_ddr/ddr2/src/rtl/phy/ph1p_ddrphy.v(187)
 HDL-5314 WARNING: net 'dx3_wdata[103]' does not have a driver in ../../../user_source/hdl_source/ph1p35_ddr/ddr2/src/rtl/phy/ph1p_ddrphy.v(188)
-HDL-5314 WARNING: net 'dx4_wdata[103]' does not have a driver in ../../../user_source/hdl_source/ph1p35_ddr/ddr2/src/rtl/phy/ph1p_ddrphy.v(189)
 HDL-5314 Similar messages will be suppressed.
 HDL-5317 WARNING: input port 'i_scan_clk' is not connected on this instance in ../../../user_source/hdl_source/ph1p35_ddr/ddr2/src/rtl/phy/ph1p_ddrphy.v(438)
 HDL-5323 WARNING: input port 'dqs_pupd_en' remains unconnected for this instance in ../../../user_source/hdl_source/ph1p35_ddr/ddr2/src/rtl/phy/ph1p_ddrphy.v(528)
@@ -648,6 +589,7 @@ HDL-1007 : elaborate module ** in ../../../user_source/hdl_source/ph1p35_ddr/ddr
 HDL-1007 : elaborate module ** in ../../../user_source/hdl_source/ph1p35_ddr/ddr2/src/rtl/mc/alc_mc_top_all.enc.sv(3500)
 HDL-5323 WARNING: input port 'apb_psel' remains unconnected for this instance in ../../../user_source/hdl_source/ph1p35_ddr/ph1p35_324_ddr_wrapper.v(78)
 HDL-1007 : elaborate module uivtc(H_ActiveSize=1920,H_FrameSize=2200,H_SyncStart=2008,H_SyncEnd=2052,V_FrameSize=1125,V_SyncStart=1084,V_SyncEnd=1089) in ../../../user_source/hdl_source/vtc/uivtc.v(42)
+HDL-1007 : elaborate module rgb24_denoise in ../../../user_source/hdl_source/rgb24_denoise_9.v(9)
 HDL-1007 : elaborate module shape_recognizer_simple(SAMPLE_SHIFT=4) in ../../../user_source/hdl_source/image_features_99.v(112)
 HDL-1007 : elaborate module motion_detect in ../../../user_source/hdl_source/image_features_99.v(353)
 HDL-1007 : extracting RAM for identifier 'frame_ram' in ../../../user_source/hdl_source/image_features_99.v(389)
@@ -666,6 +608,11 @@ HDL-1007 : elaborate module motion_osd_renderer in ../../../user_source/hdl_sour
 HDL-1007 : elaborate module motion_osd_renderer(SHOW_COUNT=0) in ../../../user_source/hdl_source/hdmi_mixer_image9.v(1331)
 HDL-1007 : elaborate module red_tracking_osd in ../../../user_source/hdl_source/red_tracking_osd.v(3)
 HDL-1007 : elaborate module color_osd_renderer in ../../../user_source/hdl_source/hdmi_mixer_image9.v(1474)
+HDL-1007 : elaborate module image_filter in ../../../user_source/hdl_source/image_effects_9.v(1)
+HDL-1007 : elaborate module sobel_edge(THRESHOLD=11'b0111100) in ../../../user_source/hdl_source/image_effects_9.v(73)
+HDL-1007 : extracting RAM for identifier 'LB1' in ../../../user_source/hdl_source/image_effects_9.v(118)
+HDL-1007 : extracting RAM for identifier 'LB2' in ../../../user_source/hdl_source/image_effects_9.v(119)
+HDL-1007 : elaborate module video_overlay_final(EFFECT_LATENCY=5) in ../../../user_source/hdl_source/image_effects_9.v(313)
 HDL-1007 : elaborate module focus_metric in ../../../user_source/hdl_source/focus_metric.v(3)
 HDL-1007 : elaborate module ui_osd in ../../../user_source/hdl_source/ui_osd.v(3)
 HDL-1007 : elaborate module hdmi_tx in ../../../user_source/hdl_source/hdmi_tx.v(4)
@@ -714,18 +661,22 @@ HDL-1007 : elaborate module ** in ../../../user_source/hdl_source/hdmi_1_4b_tran
 HDL-1007 : elaborate module hdmi_phy_wrapper(DEVICE="PH1P") in ../../../user_source/hdl_source/hdmi_phy_warpper.v(3)
 HDL-1007 : elaborate module lane_lvds_10_1(DEVICE="PH1P") in ../../../user_source/hdl_source/lane_lvds_10_1.v(4)
 HDL-1007 : elaborate module PH1P_LOGIC_ODDR in F:\AnlogicFpga\TD_6.2.1_Engineer_6.2.168.116\arch/ph1p_macro.v(8343)
-HDL-5317 WARNING: input port 'I_camera_black_level[9]' is not connected on this instance in ../../../user_source/hdl_source/design_top_wrapper.v(1083)
-HDL-5323 WARNING: input port 'I_tdest[9]' remains unconnected for this instance in ../../../user_source/hdl_source/design_top_wrapper.v(1147)
+HDL-5317 WARNING: input port 'I_camera_black_level[9]' is not connected on this instance in ../../../user_source/hdl_source/design_top_wrapper.v(1192)
+HDL-5323 WARNING: input port 'I_tdest[9]' remains unconnected for this instance in ../../../user_source/hdl_source/design_top_wrapper.v(1269)
+HDL-5001 WARNING: Contains anonymous inst(s) and/or net(s) that have not been renamed
+HDL-5001 WARNING: Contains anonymous inst(s) and/or net(s) that have not been renamed
+HDL-5001 WARNING: Contains anonymous inst(s) and/or net(s) that have not been renamed
+HDL-5001 WARNING: Contains anonymous inst(s) and/or net(s) that have not been renamed
 HDL-5001 WARNING: Contains anonymous inst(s) and/or net(s) that have not been renamed
 HDL-5001 WARNING: Contains anonymous inst(s) and/or net(s) that have not been renamed
 HDL-5001 WARNING: Contains anonymous inst(s) and/or net(s) that have not been renamed
 HDL-1200 : Current top model is design_top_wrapper
 HDL-5106 WARNING: Initial value omitted on non-DFF net "scl_r" in ../../../user_source/hdl_source/uics500_cfg/uii2c.v(129) 
 HDL-5106 WARNING: Initial value omitted on non-DFF net "sda_o" in ../../../user_source/hdl_source/uics500_cfg/uii2c.v(137) 
-HDL-1100 : Inferred 16 RAMs.
-RUN-1003 : finish command "elaborate -top design_top_wrapper" in  4.727894s wall, 4.625000s user + 0.109375s system = 4.734375s CPU (100.1%)
+HDL-1100 : Inferred 19 RAMs.
+RUN-1003 : finish command "elaborate -top design_top_wrapper" in  5.082681s wall, 4.484375s user + 0.187500s system = 4.671875s CPU (91.9%)
 
-RUN-1004 : used memory is 799 MB, reserved memory is 796 MB, peak memory is 799 MB
+RUN-1004 : used memory is 820 MB, reserved memory is 811 MB, peak memory is 820 MB
 RUN-1002 : start command "read_adc ../../../user_source/constraints_source/pin.adc"
 RUN-1002 : start command "set_pin_assignment  I_sys_clk   LOCATION = C4; IOSTANDARD  = LVCMOS33; PULLTYPE = PULLUP; "
 RUN-1002 : start command "set_pin_assignment  I_rst_n   LOCATION = R10; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; "
@@ -737,6 +688,8 @@ RUN-1002 : start command "set_pin_assignment  I_usb_int_n   LOCATION = L4;  IOST
 RUN-1002 : start command "set_pin_assignment  O_usb_res_n   LOCATION = M1; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 4; PULLTYPE = PULLDOWN; "
 RUN-1002 : start command "set_pin_assignment  O_lens_scl   LOCATION = R6; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLUP; "
 RUN-1002 : start command "set_pin_assignment  IO_lens_sda   LOCATION = R7; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLUP; "
+RUN-1002 : start command "set_pin_assignment  IO_rtc_scl   LOCATION = D15; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLUP; "
+RUN-1002 : start command "set_pin_assignment  IO_rtc_sda   LOCATION = C18; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLUP; "
 RUN-1002 : start command "set_pin_assignment  O_servo_pan   LOCATION = V6; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLDOWN; "
 RUN-1002 : start command "set_pin_assignment  O_servo_tilt   LOCATION = V4; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLDOWN; "
 RUN-1002 : start command "set_pin_assignment  I_mcu_uart_rx   LOCATION = J1; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; "
@@ -755,9 +708,9 @@ RUN-1002 : start command "set_pin_assignment  O_tmds_ch1_p   LOCATION = F17; IOS
 RUN-1002 : start command "set_pin_assignment  O_tmds_ch2_p   LOCATION = H14; IOSTANDARD = TMDS33; PULLTYPE = NONE; "
 RUN-1002 : start command "set_pin_assignment  O_tmds_clk_p   LOCATION = C17; IOSTANDARD = TMDS33; PULLTYPE = NONE; "
 RUN-1001 : Starting of IO setups legality check.
-RUN-1003 : finish command "read_adc ../../../user_source/constraints_source/pin.adc" in  2.970754s wall, 2.921875s user + 0.031250s system = 2.953125s CPU (99.4%)
+RUN-1003 : finish command "read_adc ../../../user_source/constraints_source/pin.adc" in  2.569450s wall, 2.484375s user + 0.062500s system = 2.546875s CPU (99.1%)
 
-RUN-1004 : used memory is 798 MB, reserved memory is 794 MB, peak memory is 799 MB
+RUN-1004 : used memory is 819 MB, reserved memory is 809 MB, peak memory is 820 MB
 RUN-1002 : start command "read_ip_adc -ip ddr2 -file ../../../user_source/hdl_source/ph1p35_ddr/ddr2/src/adc/ddr2.adc"
 RUN-1002 : start command "set_ippin_assignment ddr2  ddr_ck_p      LOCATION = X0Y44Z2; IOSTANDARD = DIFF_SSTL15; #pl44c"
 RUN-1002 : start command "set_ippin_assignment ddr2  ddr_ck_n      LOCATION = X0Y44Z3; IOSTANDARD = DIFF_SSTL15; #pl44d"
@@ -821,9 +774,9 @@ RUN-1002 : start command "set_ipinst_assignment ddr2 ph1p_ddrmc_wrapper/ph1p_ddr
 RUN-1002 : start command "set_ipinst_assignment ddr2 ph1p_ddrmc_wrapper/ph1p_ddrmc_top/u_ddr_phy/u_ddrphy_top/u_ddrphy/bkref[0]$u_ddrphy_bankref  LOCATION = X0Y19Z0;"
 RUN-1002 : start command "set_ipinst_assignment ddr2 ph1p_ddrmc_wrapper/ph1p_ddrmc_top/u_ddr_phy/u_ddrphy_top/u_ddrphy/bkref[1]$u_ddrphy_bankref  LOCATION = X0Y59Z0;"
 RUN-1001 : Starting of IO setups legality check.
-RUN-1003 : finish command "read_ip_adc -ip ddr2 -file ../../../user_source/hdl_source/ph1p35_ddr/ddr2/src/adc/ddr2.adc" in  10.775129s wall, 10.640625s user + 0.078125s system = 10.718750s CPU (99.5%)
+RUN-1003 : finish command "read_ip_adc -ip ddr2 -file ../../../user_source/hdl_source/ph1p35_ddr/ddr2/src/adc/ddr2.adc" in  9.001703s wall, 8.562500s user + 0.265625s system = 8.828125s CPU (98.1%)
 
-RUN-1004 : used memory is 792 MB, reserved memory is 788 MB, peak memory is 799 MB
+RUN-1004 : used memory is 812 MB, reserved memory is 803 MB, peak memory is 820 MB
 RUN-1002 : start command "read_sdc ../../camera_to_dsi_display.sdc"
 RUN-1002 : start command "read_sdc -ip RISCV_F6F1D1P0_0 ../../al_ip/RISCV_F6F1D1P0_0/RISCV_F6F1D1P0_0.tcl"
 RUN-1002 : start command "read_sdc -ip ddr2 ../../../user_source/hdl_source/ph1p35_ddr/ddr2/src/sdc/ddr2.sdc"
@@ -847,9 +800,9 @@ RUN-1001 : Exported timing constraints
 RUN-1001 : Exported IO constraints
 RUN-1001 : Exported Inst constraints
 RUN-1001 : Exported ChipWatcher
-RUN-1003 : finish command "export_db camera_to_dsi_display_elaborate.db" in  1.339108s wall, 1.953125s user + 0.093750s system = 2.046875s CPU (152.9%)
+RUN-1003 : finish command "export_db camera_to_dsi_display_elaborate.db" in  1.087409s wall, 1.578125s user + 0.093750s system = 1.671875s CPU (153.7%)
 
-RUN-1004 : used memory is 659 MB, reserved memory is 766 MB, peak memory is 799 MB
+RUN-1004 : used memory is 669 MB, reserved memory is 745 MB, peak memory is 820 MB
 RUN-1002 : start command "commit_param -step rtl"
 RUN-1002 : start command "set_param flow thread 32"
 RUN-1001 : Print Global Property
@@ -884,14 +837,14 @@ RUN-1001 : Open license file F:/AnlogicFpga/TD_6.2.1_Engineer_6.2.168.116/licens
 SYN-1001 : Stage 1 | Optimize RTL
 SYN-1001 : Stage 1.1 | Check Design Sanity
 SYN-5065 WARNING: Register "genCA$op" in ../../../user_source/hdl_source/ph1p35_ddr/ddr2/src/rtl/mc/alc_mc_top_all.enc.sv(0) is described with both an asynchronous reset and an asynchronous set. It may have an uncertainty of the timing. Please conside rewriting code.
-SYN-1001 : End Stage 1.1 | Check Design Sanity; Time: 0.068130s wall, 0.062500s user + 0.000000s system = 0.062500s CPU (91.7%); Memory(MB): used = 659, reserved = 766, peak = 799;
+SYN-1001 : End Stage 1.1 | Check Design Sanity; Time: 0.055301s wall, 0.046875s user + 0.000000s system = 0.046875s CPU (84.8%); Memory(MB): used = 669, reserved = 745, peak = 820;
 
-SYN-1079 : finish stage Check Design Sanity. Total instances: 83092, Total nets: 211888.
+SYN-1079 : finish stage Check Design Sanity. Total instances: 86267, Total nets: 226712.
 
 SYN-1001 : Stage 1.2 | Initialize Design
-SYN-1001 : End Stage 1.2 | Initialize Design; Time: 7.816109s wall, 7.750000s user + 0.031250s system = 7.781250s CPU (99.6%); Memory(MB): used = 659, reserved = 766, peak = 799;
+SYN-1001 : End Stage 1.2 | Initialize Design; Time: 8.040630s wall, 7.906250s user + 0.062500s system = 7.968750s CPU (99.1%); Memory(MB): used = 669, reserved = 744, peak = 820;
 
-SYN-1079 : finish stage Initialize Design. Total instances: 28220, Total nets: 127247.
+SYN-1079 : finish stage Initialize Design. Total instances: 22321, Total nets: 134666.
 
 SYN-1001 : Stage 1.3 | Flatten Module
 SYN-1011 : Flatten model design_top_wrapper
@@ -902,38 +855,57 @@ RUN-1001 : ---------------------------------------------------------------------
 RUN-1001 :  u_video_in/U_w128_d512_...  |       true       | soft_fifo_al_4057d6b76a...  | ../../../user_source/ip...  
 RUN-1001 :  u_mc_to_user_interface/...  |       true       | soft_fifo_al_f58e8b3e1f...  | ../../../user_source/ip...  
 RUN-1001 : ------------------------------------------------------------------------------------------------------------
-SYN-1001 : End Stage 1.3 | Flatten Module; Time: 1.511534s wall, 1.500000s user + 0.000000s system = 1.500000s CPU (99.2%); Memory(MB): used = 674, reserved = 781, peak = 799;
+SYN-1001 : End Stage 1.3 | Flatten Module; Time: 1.723261s wall, 1.703125s user + 0.015625s system = 1.718750s CPU (99.7%); Memory(MB): used = 682, reserved = 758, peak = 820;
 
-SYN-1079 : finish stage Flatten Module. Total instances: 40949, Total nets: 125170.
+SYN-1079 : finish stage Flatten Module. Total instances: 27886, Total nets: 124816.
 
 SYN-1001 : Stage 1.4 | Uniform Instance
 SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_hdmi_tx/u_key_remove_shakes/I_rst_n" in ../../../user_source/hdl_source/key_remove_shakes.v(14)
 		the net's pin: pin "I" in ../../../user_source/hdl_source/key_remove_shakes.v(46)
 SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_isp_top/O_tready" in ../../../user_source/hdl_source/isp/isp_top.v(11)
-		the net's pin: pin "i" in ../../../user_source/hdl_source/isp/isp_top.v(32)
-SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_isp_top/u_awb/signal_delay_d/rd_en_syn_3" in ../../../user_source/hdl_source/signal_delay.v(34)
-		the net's pin: pin "i" in ../../../user_source/hdl_source/signal_delay.v(34)
-SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_isp_top/u_awb/signal_delay_d/blk_mem_gen_awb_delay_signal_d/ram_f84573da5ab5_Inst/dib[95]" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(30)
-		the net's pin: pin "dib[95]" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(60)
-SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_isp_top/u_awb/signal_delay_d/blk_mem_gen_awb_delay_signal_d/ram_f84573da5ab5_Inst/dib[94]" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(30)
-		the net's pin: pin "dib[94]" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(60)
-SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_isp_top/u_awb/signal_delay_d/blk_mem_gen_awb_delay_signal_d/ram_f84573da5ab5_Inst/dib[93]" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(30)
-		the net's pin: pin "dib[93]" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(60)
-SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_isp_top/u_awb/signal_delay_d/blk_mem_gen_awb_delay_signal_d/ram_f84573da5ab5_Inst/dib[92]" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(30)
-		the net's pin: pin "dib[92]" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(60)
-SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_isp_top/u_awb/signal_delay_d/blk_mem_gen_awb_delay_signal_d/ram_f84573da5ab5_Inst/dib[91]" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(30)
-		the net's pin: pin "dib[91]" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(60)
-SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_isp_top/u_awb/signal_delay_d/blk_mem_gen_awb_delay_signal_d/ram_f84573da5ab5_Inst/dib[90]" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(30)
-		the net's pin: pin "dib[90]" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(60)
-SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_isp_top/u_awb/signal_delay_d/blk_mem_gen_awb_delay_signal_d/ram_f84573da5ab5_Inst/dib[89]" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(30)
-		the net's pin: pin "dib[89]" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(60)
+		the net's pin: pin "i" in ../../../user_source/hdl_source/isp/isp_top.v(51)
+SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_isp_top/u_demosaic/raw_matrix_3x3_buffer_d/two_line_buffer[1]$line_buffer_demosaic_r1/blk_mem_gen_demosaic_r0/ram_c36c2ca3b3a7_Inst/dib[32]" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(43)
+		the net's pin: pin "dib[32]" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(91)
+SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_isp_top/u_demosaic/raw_matrix_3x3_buffer_d/two_line_buffer[1]$line_buffer_demosaic_r1/blk_mem_gen_demosaic_r0/ram_c36c2ca3b3a7_Inst/dib[31]" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(43)
+		the net's pin: pin "dib[31]" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(91)
+SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_isp_top/u_demosaic/raw_matrix_3x3_buffer_d/two_line_buffer[1]$line_buffer_demosaic_r1/blk_mem_gen_demosaic_r0/ram_c36c2ca3b3a7_Inst/dib[30]" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(43)
+		the net's pin: pin "dib[30]" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(91)
+SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_isp_top/u_demosaic/raw_matrix_3x3_buffer_d/two_line_buffer[1]$line_buffer_demosaic_r1/blk_mem_gen_demosaic_r0/ram_c36c2ca3b3a7_Inst/dib[29]" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(43)
+		the net's pin: pin "dib[29]" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(91)
+SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_isp_top/u_demosaic/raw_matrix_3x3_buffer_d/two_line_buffer[1]$line_buffer_demosaic_r1/blk_mem_gen_demosaic_r0/ram_c36c2ca3b3a7_Inst/dib[28]" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(43)
+		the net's pin: pin "dib[28]" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(91)
+SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_isp_top/u_demosaic/raw_matrix_3x3_buffer_d/two_line_buffer[1]$line_buffer_demosaic_r1/blk_mem_gen_demosaic_r0/ram_c36c2ca3b3a7_Inst/dib[27]" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(43)
+		the net's pin: pin "dib[27]" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(91)
+SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_isp_top/u_demosaic/raw_matrix_3x3_buffer_d/two_line_buffer[1]$line_buffer_demosaic_r1/blk_mem_gen_demosaic_r0/ram_c36c2ca3b3a7_Inst/dib[26]" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(43)
+		the net's pin: pin "dib[26]" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(91)
+SYN-5013 WARNING: Undriven net: model "design_top_wrapper" / net "u_isp_top/u_demosaic/raw_matrix_3x3_buffer_d/two_line_buffer[1]$line_buffer_demosaic_r1/blk_mem_gen_demosaic_r0/ram_c36c2ca3b3a7_Inst/dib[25]" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(43)
+		the net's pin: pin "dib[25]" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(91)
 SYN-5013 Similar messages will be suppressed.
 SYN-5025 WARNING: Using 0 for all undriven pins and nets
-SYN-1001 : End Stage 1.4 | Uniform Instance; Time: 0.758382s wall, 0.734375s user + 0.015625s system = 0.750000s CPU (98.9%); Memory(MB): used = 645, reserved = 748, peak = 799;
+SYN-1001 : End Stage 1.4 | Uniform Instance; Time: 0.322719s wall, 0.328125s user + 0.000000s system = 0.328125s CPU (101.7%); Memory(MB): used = 653, reserved = 724, peak = 820;
 
-SYN-1079 : finish stage Uniform Instance. Total instances: 38533, Total nets: 121946.
+SYN-1079 : finish stage Uniform Instance. Total instances: 25470, Total nets: 121688.
 
 SYN-1001 : Stage 1.5 | Optimize Design
+SYN-1066 : Inferred FSM for state register 'u_ds3231_i2c_ctrl/state_reg' in module 'design_top_wrapper'
+--------------------------------------------
+     Previous Encoding     New Encoding
+--------------------------------------------
+                   000             0001
+                   001             0010
+                   010             0100
+                   011             1000
+--------------------------------------------
+SYN-1067 : encoded FSM with state register 'u_ds3231_i2c_ctrl/state_reg' using encoding 'one_hot' in model 'design_top_wrapper'
+SYN-1066 : Inferred FSM for state register 'u_isp_top/u_awb/div_st_reg' in module 'design_top_wrapper'
+--------------------------------------------
+     Previous Encoding     New Encoding
+--------------------------------------------
+                    00              001
+                    01              010
+                    10              100
+--------------------------------------------
+SYN-1067 : encoded FSM with state register 'u_isp_top/u_awb/div_st_reg' using encoding 'one_hot' in model 'design_top_wrapper'
 SYN-1066 : Inferred FSM for state register 'u_lens_i2c_ctrl/state_reg' in module 'design_top_wrapper'
 --------------------------------------------
      Previous Encoding     New Encoding
@@ -1080,77 +1052,82 @@ SYN-1066 : Inferred FSM for state register 'u_uicfgcs500/TS_S_reg' in module 'de
                     11             1000
 --------------------------------------------
 SYN-1067 : encoded FSM with state register 'u_uicfgcs500/TS_S_reg' using encoding 'one_hot' in model 'design_top_wrapper'
-SYN-1057 : Inferred 12 FSM(s)
+SYN-1057 : Inferred 14 FSM(s)
 SYN-1001 : Optimize 3 less-than instances
-SYN-1001 : Optimize 9 less-than instances
-SYN-1032 : 112154/2999 useful/useless nets, 37049/209 useful/useless insts
-SYN-1001 : Bypass 1 mux instances
-SYN-1021 : Optimized 27 onehot mux instances.
-SYN-1068 : Optimized 34 binary mux instances.
-SYN-1019 : Optimized 16 mux instances.
-SYN-1021 : Optimized 4 onehot mux instances.
+SYN-1001 : Optimize 10 less-than instances
+SYN-1032 : 109404/3907 useful/useless nets, 23959/231 useful/useless insts
+SYN-1001 : Bypass 3 mux instances
+SYN-1021 : Optimized 30 onehot mux instances.
+SYN-1068 : Optimized 41 binary mux instances.
+SYN-1019 : Optimized 21 mux instances.
+SYN-1021 : Optimized 6 onehot mux instances.
 SYN-1021 : Optimized 5 onehot mux instances.
-SYN-1021 : Optimized 29 onehot mux instances.
+SYN-1021 : Optimized 30 onehot mux instances.
 SYN-1001 : Optimize 14 less-than instances
-SYN-1016 : Merged 10744 instances.
+SYN-1016 : Merged 9306 instances.
 8.888000
 15.000000
 15.000000
 13.333000
-SYN-1016 : Merged 3373 instances.
-SYN-1001 : End Stage 1.5 | Optimize Design; Time: 23.110820s wall, 22.765625s user + 0.250000s system = 23.015625s CPU (99.6%); Memory(MB): used = 1243, reserved = 1231, peak = 1243;
+SYN-1016 : Merged 3479 instances.
+SYN-1001 : End Stage 1.5 | Optimize Design; Time: 28.892220s wall, 28.046875s user + 0.609375s system = 28.656250s CPU (99.2%); Memory(MB): used = 1255, reserved = 1243, peak = 1255;
 
-SYN-1079 : finish stage Optimize Design. Total instances: 78338, Total nets: 88122.
+SYN-1079 : finish stage Optimize Design. Total instances: 73150, Total nets: 83366.
 
 SYN-1001 : Stage 1.6 | Optimize Iteratively
 SYN-1018 : Transformed 4 mux instances.
-SYN-1019 : Optimized 63 mux instances.
-SYN-1021 : Optimized 333 onehot mux instances.
+SYN-1019 : Optimized 64 mux instances.
+SYN-1021 : Optimized 722 onehot mux instances.
 SYN-1014 : Optimize round 1
-SYN-1044 : Optimized 418 inv instances.
-SYN-1017 : Remove 130 const input seq instances
+SYN-1044 : Optimized 463 inv instances.
+SYN-1017 : Remove 86 const input seq instances
 SYN-1018 : Transformed 5 mux instances.
-SYN-1019 : Optimized 485 mux instances.
-SYN-1020 : Optimized 3416 distributor mux.
-SYN-1001 : Optimize 192 less-than instances
-SYN-1019 : Optimized 134 mux instances.
-SYN-2595 : bram inst: u_isp_top/u_awb/signal_delay_d/blk_mem_gen_awb_delay_signal_d/ram_f84573da5ab5_Inst/username_inst is set to PDPW/SP from DP for resource saving
+SYN-1019 : Optimized 490 mux instances.
+SYN-1020 : Optimized 3356 distributor mux.
+SYN-1001 : Optimize 245 less-than instances
+SYN-1019 : Optimized 168 mux instances.
 SYN-2595 : bram inst: u_isp_top/u_demosaic/raw_matrix_3x3_buffer_d/two_line_buffer[1]$line_buffer_demosaic_r1/blk_mem_gen_demosaic_r0/ram_c36c2ca3b3a7_Inst/username_inst is set to PDPW/SP from DP for resource saving
 SYN-2595 : bram inst: u_isp_top/u_demosaic/raw_matrix_3x3_buffer_d/two_line_buffer[2]$line_buffer_demosaic_r1/blk_mem_gen_demosaic_r0/ram_c36c2ca3b3a7_Inst/username_inst is set to PDPW/SP from DP for resource saving
 SYN-2595 : bram inst: u_isp_top/u_demosaic/raw_matrix_3x3_buffer_d/zhenghe_d/blk_mem_gen_zhenghe_d1/ram_d32970204f32_Inst/username_inst is set to PDPW/SP from DP for resource saving
 SYN-2593 : bram inst: u_isp_top/u_demosaic/raw_matrix_3x3_buffer_d/two_line_buffer[2]$line_buffer_demosaic_r1/blk_mem_gen_demosaic_r0/ram_c36c2ca3b3a7_Inst/username_inst will be optimized to a new one with A-width 32 due to unused data out
-SYN-1016 : Merged 11628 instances.
-SYN-1015 : Optimize round 1, 36162 better
+SYN-2593 : bram inst: u_rgb24_denoise_9/u_den_buf1/ram_f84573da5ab5_Inst/username_inst will be optimized to a new one with A-width 24 due to unused data out
+SYN-1016 : Merged 12346 instances.
+SYN-1015 : Optimize round 1, 40869 better
 SYN-1014 : Optimize round 2
-SYN-1044 : Optimized 41 inv instances.
-SYN-1017 : Remove 12 const input seq instances
-SYN-1019 : Optimized 603 mux instances.
-SYN-1020 : Optimized 87 distributor mux.
+SYN-1044 : Optimized 54 inv instances.
+SYN-1017 : Remove 13 const input seq instances
+SYN-1019 : Optimized 629 mux instances.
+SYN-1020 : Optimized 100 distributor mux.
 SYN-1001 : Optimize 2 less-than instances
-SYN-1019 : Optimized 136 mux instances.
-SYN-1016 : Merged 210 instances.
-SYN-1015 : Optimize round 2, 1379 better
+SYN-1019 : Optimized 248 mux instances.
+SYN-2593 : bram inst: u_rgb24_denoise_9/u_den_buf2/ram_f84573da5ab5_Inst/username_inst will be optimized to a new one with A-width 24 due to unused data out
+SYN-1016 : Merged 228 instances.
+SYN-1015 : Optimize round 2, 1614 better
 SYN-5011 WARNING: Undriven pin: model "design_top_wrapper" / inst "u_isp_top/u_demosaic/raw_matrix_3x3_buffer_d/two_line_buffer[2]$line_buffer_demosaic_r1/blk_mem_gen_demosaic_r0/ram_c36c2ca3b3a7_Inst/username_inst" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(91) / pin "bea[0]"
 SYN-5011 WARNING: Undriven pin: model "design_top_wrapper" / inst "u_isp_top/u_demosaic/raw_matrix_3x3_buffer_d/two_line_buffer[2]$line_buffer_demosaic_r1/blk_mem_gen_demosaic_r0/ram_c36c2ca3b3a7_Inst/username_inst" in ../../../user_source/hdl_source/isp/demosaic_4x_2_0/blk_mem_gen_demosaic/RTL/ram_c36c2ca3b3a7.v(91) / pin "beb[0]"
+SYN-5011 WARNING: Undriven pin: model "design_top_wrapper" / inst "u_rgb24_denoise_9/u_den_buf1/ram_f84573da5ab5_Inst/username_inst" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(60) / pin "bea[0]"
+SYN-5011 WARNING: Undriven pin: model "design_top_wrapper" / inst "u_rgb24_denoise_9/u_den_buf1/ram_f84573da5ab5_Inst/username_inst" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(60) / pin "beb[0]"
+SYN-5011 WARNING: Undriven pin: model "design_top_wrapper" / inst "u_rgb24_denoise_9/u_den_buf2/ram_f84573da5ab5_Inst/username_inst" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(60) / pin "bea[0]"
+SYN-5011 WARNING: Undriven pin: model "design_top_wrapper" / inst "u_rgb24_denoise_9/u_den_buf2/ram_f84573da5ab5_Inst/username_inst" in ../../../user_source/ip_source/blk_mem_gen_awb_delay_signal/ram_f84573da5ab5.v(60) / pin "beb[0]"
 SYN-5025 WARNING: Using 0 for all undriven pins and nets
-SYN-3010 : Optimized 453 DFF(s)
+SYN-3010 : Optimized 486 DFF(s)
 SYN-1014 : Optimize round 1
-SYN-1017 : Remove 25 const input seq instances
+SYN-1017 : Remove 24 const input seq instances
 SYN-1019 : Optimized 8 mux instances.
-SYN-1020 : Optimized 156 distributor mux.
-SYN-1019 : Optimized 20 mux instances.
-SYN-1016 : Merged 754 instances.
-SYN-1015 : Optimize round 1, 1154 better
+SYN-1020 : Optimized 268 distributor mux.
+SYN-1019 : Optimized 19 mux instances.
+SYN-1016 : Merged 1181 instances.
+SYN-1015 : Optimize round 1, 1694 better
 SYN-1014 : Optimize round 2
 SYN-1044 : Optimized 4 inv instances.
 SYN-1017 : Remove 3 const input seq instances
 SYN-1019 : Optimized 11 mux instances.
 SYN-1020 : Optimized 10 distributor mux.
-SYN-1016 : Merged 30 instances.
-SYN-1015 : Optimize round 2, 67 better
+SYN-1016 : Merged 31 instances.
+SYN-1015 : Optimize round 2, 68 better
 SYN-1014 : Optimize round 3
 SYN-1017 : Remove 3 const input seq instances
-SYN-1015 : Optimize round 3, 6 better
+SYN-1015 : Optimize round 3, 7 better
 SYN-1014 : Optimize round 4
 SYN-1017 : Remove 15 const input seq instances
 SYN-1019 : Optimized 84 mux instances.
@@ -1172,60 +1149,52 @@ SYN-1015 : Optimize round 7, 36 better
 SYN-1014 : Optimize round 8
 SYN-1017 : Remove 1 const input seq instances
 SYN-1015 : Optimize round 8, 1 better
-SYN-1001 : End Stage 1.6 | Optimize Iteratively; Time: 78.298393s wall, 77.468750s user + 0.531250s system = 78.000000s CPU (99.6%); Memory(MB): used = 1163, reserved = 1161, peak = 1262;
+SYN-1001 : End Stage 1.6 | Optimize Iteratively; Time: 86.511740s wall, 85.625000s user + 0.593750s system = 86.218750s CPU (99.7%); Memory(MB): used = 1172, reserved = 1171, peak = 1264;
 
-SYN-1079 : finish stage Optimize Iteratively. Total instances: 78939, Total nets: 88302.
+SYN-1079 : finish stage Optimize Iteratively. Total instances: 73356, Total nets: 82998.
 
 SYN-1001 : Stage 1.7 | Check Design
-SYN-1001 : End Stage 1.7 | Check Design; Time: 0.030137s wall, 0.031250s user + 0.000000s system = 0.031250s CPU (103.7%); Memory(MB): used = 1163, reserved = 1161, peak = 1262;
+SYN-1001 : End Stage 1.7 | Check Design; Time: 0.034295s wall, 0.046875s user + 0.000000s system = 0.046875s CPU (136.7%); Memory(MB): used = 1172, reserved = 1171, peak = 1264;
 
-SYN-1079 : finish stage Check Design. Total instances: 78939, Total nets: 88302.
+SYN-1079 : finish stage Check Design. Total instances: 73356, Total nets: 82998.
 
-SYN-1001 : End Stage 1 | Optimize RTL; Time: 111.600441s wall, 110.328125s user + 0.828125s system = 111.156250s CPU (99.6%); Memory(MB): used = 1163, reserved = 1161, peak = 1262;
+SYN-1001 : End Stage 1 | Optimize RTL; Time: 125.586434s wall, 123.703125s user + 1.281250s system = 124.984375s CPU (99.5%); Memory(MB): used = 1172, reserved = 1171, peak = 1264;
 
-SYN-1079 : finish stage Optimize RTL. Total instances: 78939, Total nets: 88302.
+SYN-1079 : finish stage Optimize RTL. Total instances: 73356, Total nets: 82998.
 
-RUN-1003 : finish command "optimize_rtl" in  111.628565s wall, 110.359375s user + 0.828125s system = 111.187500s CPU (99.6%)
+RUN-1003 : finish command "optimize_rtl" in  125.605875s wall, 123.718750s user + 1.281250s system = 125.000000s CPU (99.5%)
 
-RUN-1004 : used memory is 1163 MB, reserved memory is 1161 MB, peak memory is 1262 MB
+RUN-1004 : used memory is 1172 MB, reserved memory is 1171 MB, peak memory is 1264 MB
 RUN-1002 : start command "report_area -file camera_to_dsi_display_rtl.area"
 RUN-1001 : standard
 ***Report Model: design_top_wrapper Device: PH1P35MDG324***
 
 IO Statistics
-#IO                        82
+#IO                        84
   #input                    9
   #output                  37
-  #inout                   36
+  #inout                   38
 
 Gate Statistics
-#Basic gates            56984
-  #and                  14471
+#Basic gates            53537
+  #and                  14753
   #nand                     0
-  #or                    5383
+  #or                    5663
   #nor                      0
-  #xor                     96
+  #xor                    110
   #xnor                     0
   #buf                      0
-  #not                   8112
-  #bufif1                   4
-  #MX21                  8003
+  #not                   8295
+  #bufif1                   6
+  #MX21                  8933
   #FADD                     0
-  #DFF                  20915
+  #DFF                  15777
   #LATCH                    0
-#MACRO_ADD               1155
-#MACRO_EQ                 408
+#MACRO_ADD               1556
+#MACRO_EQ                 434
 #MACRO_MULT                14
-#MACRO_MUX               9709
-#MACRO_OTHERS              14
-
-LUT Statistics
-#Total_luts              4530
-  #lut4                  2054
-  #lut5                    44
-  #lut6                   178
-  #lut5_mx41                0
-  #lut4_alu1b            2254
+#MACRO_MUX              12034
+#MACRO_OTHERS              15
 
 RUN-1002 : start command "export_db camera_to_dsi_display_rtl.db"
 RUN-1001 : Exported flow parameters
@@ -1246,9 +1215,9 @@ RUN-1001 : Exported timing constraints
 RUN-1001 : Exported IO constraints
 RUN-1001 : Exported Inst constraints
 RUN-1001 : Exported ChipWatcher
-RUN-1003 : finish command "export_db camera_to_dsi_display_rtl.db" in  1.580516s wall, 2.203125s user + 0.046875s system = 2.250000s CPU (142.4%)
+RUN-1003 : finish command "export_db camera_to_dsi_display_rtl.db" in  1.630024s wall, 2.156250s user + 0.031250s system = 2.187500s CPU (134.2%)
 
-RUN-1004 : used memory is 1227 MB, reserved memory is 1330 MB, peak memory is 1262 MB
+RUN-1004 : used memory is 1236 MB, reserved memory is 1341 MB, peak memory is 1264 MB
 RUN-1002 : start command "commit_param -step gate"
 RUN-1002 : start command "set_param flow thread 32"
 RUN-1001 : Print Global Property
@@ -1278,13 +1247,13 @@ RUN-1002 : start command "optimize_gate -packarea camera_to_dsi_display_gate.are
 RUN-1001 : Open license file F:/AnlogicFpga/TD_6.2.1_Engineer_6.2.168.116/license/Anlogic.lic
 SYN-1001 : Stage 2 | Optimize Gate
 SYN-1001 : Stage 2.1 | Map Reg
-SYN-1001 : End Stage 2.1 | Map Reg; Time: 3.074221s wall, 2.984375s user + 0.046875s system = 3.031250s CPU (98.6%); Memory(MB): used = 1191, reserved = 1295, peak = 1262;
+SYN-1001 : End Stage 2.1 | Map Reg; Time: 3.334224s wall, 3.312500s user + 0.015625s system = 3.328125s CPU (99.8%); Memory(MB): used = 1202, reserved = 1301, peak = 1264;
 
-SYN-1079 : finish stage Map Reg. Total instances: 78939, Total nets: 88302.
+SYN-1079 : finish stage Map Reg. Total instances: 73356, Total nets: 82998.
 
 SYN-1001 : Stage 2.2 | Map IO
-SYN-2001 : Map 82 IOs to PADs of model 'design_top_wrapper'
-SYN-1001 : End Stage 2.2 | Map IO; Time: 1.147350s wall, 1.140625s user + 0.000000s system = 1.140625s CPU (99.4%); Memory(MB): used = 1192, reserved = 1296, peak = 1262;
+SYN-2001 : Map 84 IOs to PADs of model 'design_top_wrapper'
+SYN-1001 : End Stage 2.2 | Map IO; Time: 1.565105s wall, 1.562500s user + 0.000000s system = 1.562500s CPU (99.8%); Memory(MB): used = 1204, reserved = 1302, peak = 1264;
 
 SYN-1001 : Stage 2.3 | Map Macro
 RUN-1002 : start command "update_pll_param -module design_top_wrapper"
@@ -1299,34 +1268,38 @@ SYN-5041 WARNING: Ram Inst: u_video_out/U_w128_d512_fifo/soft_fifo_al_4057d6b76a
 SYN-1019 : Optimized 4 mux instances.
 SYN-2571 : Map 14 macro multiplier
 SYN-2571 : Optimize after map_dsp, round 1
-SYN-1016 : Merged 34 instances.
-SYN-2571 : Optimize after map_dsp, round 1, 34 better
+SYN-1016 : Merged 86 instances.
+SYN-2571 : Optimize after map_dsp, round 1, 86 better
 SYN-2571 : Optimize after map_dsp, round 2
 SYN-2571 : Optimize after map_dsp, round 2, 0 better
 SYN-2601 : All the used dsp number is 14
-SYN-1001 : Throwback 846 control mux instances
+SYN-1001 : Throwback 918 control mux instances
 SYN-1001 : clone 2 adder instances
-SYN-1001 : Generate 69 bigger adders
-SYN-1001 : Convert 25 adder
+SYN-1001 : Generate 96 bigger adders
+SYN-1001 : Convert 27 adder
 8.888000
 15.000000
 15.000000
 13.333000
-SYN-1001 : Optimize 186 adders
+SYN-1001 : Optimize 237 adders
 SYN-1001 : Convert 6 adder
 SYN-2501 : Optimize round 1
-SYN-1016 : Merged 935 instances.
-SYN-2501 : Optimize round 1, 3597 better
+SYN-1016 : Merged 932 instances.
+SYN-2501 : Optimize round 1, 3736 better
 SYN-2501 : Optimize round 2
 SYN-2501 : Optimize round 2, 12 better
 SYN-2501 : Optimize round 1
-SYN-2501 : Optimize round 1, 0 better
-SYN-1030 : Map 86 macro adder
-SYN-1031 : Map 51 macro less-than
-SYN-2501 : Map 915 macro adder(s)
-SYN-3009 : Map 72 FxMUX in MapMacro
-SYN-1019 : Optimized 1450 mux instances.
-SYN-1016 : Merged 5315 instances.
+SYN-1016 : Merged 1 instances.
+SYN-2501 : Optimize round 1, 1 better
+SYN-2501 : Optimize round 2
+SYN-2501 : Optimize round 2, 0 better
+SYN-1030 : Map 129 macro adder
+SYN-1031 : Map 101 macro less-than
+SYN-2501 : Map 1175 macro adder(s)
+SYN-2501 : Inferred 48 ROM instances
+SYN-3009 : Map 168 FxMUX in MapMacro
+SYN-1019 : Optimized 2829 mux instances.
+SYN-1016 : Merged 7207 instances.
 SYN-5011 WARNING: Undriven pin: model "design_top_wrapper" / inst "u_ph1p35_324_ddr_wrapper/u_ddr2/ph1p_ddrmc_wrapper/ph1p_ddrmc_top/u_ddr_phy/u_ddrphy_top/u_ddrphy_init/ramread0_syn_24" in ../../../user_source/hdl_source/ph1p35_ddr/ddr2/src/rtl/phy/ph1p_ddrphy_init.v(73) / pin "di[7]"
 SYN-5011 WARNING: Undriven pin: model "design_top_wrapper" / inst "u_ph1p35_324_ddr_wrapper/u_ddr2/ph1p_ddrmc_wrapper/ph1p_ddrmc_top/u_ddr_phy/u_ddrphy_top/u_ddrphy_init/ramread0_syn_24" in ../../../user_source/hdl_source/ph1p35_ddr/ddr2/src/rtl/phy/ph1p_ddrphy_init.v(73) / pin "di[6]"
 SYN-5011 WARNING: Undriven pin: model "design_top_wrapper" / inst "u_ph1p35_324_ddr_wrapper/u_ddr2/ph1p_ddrmc_wrapper/ph1p_ddrmc_top/u_ddr_phy/u_ddrphy_top/u_ddrphy_init/ramread0_syn_24" in ../../../user_source/hdl_source/ph1p35_ddr/ddr2/src/rtl/phy/ph1p_ddrphy_init.v(73) / pin "di[5]"
@@ -1339,77 +1312,77 @@ SYN-5011 WARNING: Undriven pin: model "design_top_wrapper" / inst "u_ph1p35_324_
 SYN-5011 WARNING: Undriven pin: model "design_top_wrapper" / inst "u_ph1p35_324_ddr_wrapper/u_ddr2/ph1p_ddrmc_wrapper/ph1p_ddrmc_top/u_ddr_phy/u_ddrphy_top/u_ddrphy_init/ramread0_syn_25" in ../../../user_source/hdl_source/ph1p35_ddr/ddr2/src/rtl/phy/ph1p_ddrphy_init.v(73) / pin "di[6]"
 SYN-5011 Similar messages will be suppressed.
 SYN-5025 WARNING: Using 0 for all undriven pins and nets
-SYN-1001 : End Stage 2.3 | Map Macro; Time: 34.160125s wall, 33.218750s user + 0.875000s system = 34.093750s CPU (99.8%); Memory(MB): used = 1297, reserved = 1378, peak = 1297;
+SYN-1001 : End Stage 2.3 | Map Macro; Time: 68.296544s wall, 65.015625s user + 2.187500s system = 67.203125s CPU (98.4%); Memory(MB): used = 1319, reserved = 1307, peak = 1319;
 
-SYN-1079 : finish stage Map Macro. Total instances: 93425, Total nets: 103434.
+SYN-1079 : finish stage Map Macro. Total instances: 96943, Total nets: 106767.
 
 SYN-1001 : Stage 2.4 | Map Gate
-SYN-3001 : Collect 12493 PI 7815 PO (111 timing unconstrained) for mapping
-SYN-2581 : Mapping with K=6, #lut = 14880 (4.21), #lev = 13 (3.35), #crit_level = 5
+SYN-3001 : Collect 14774 PI 9427 PO (110 timing unconstrained) for mapping
+SYN-2581 : Mapping with K=6, #lut = 17642 (4.26), #lev = 13 (3.14), #crit_level = 5
 SYN-2551 : Post LUT mapping optimization.
-SYN-2581 : Mapping with K=6, #lut = 14082 (4.14), #lev = 12 (3.42), #crit_level = 5
-SYN-3001 : Logic optimization opt = 10.20 sec, map = 3.96 sec, post map opt = 35.37 sec.
+SYN-2581 : Mapping with K=6, #lut = 16381 (4.17), #lev = 12 (3.23), #crit_level = 9
+SYN-3001 : Logic optimization opt = 13.23 sec, map = 4.67 sec, post map opt = 35.93 sec.
 SYN-3001 : Mapper removed 7 lut buffers
-SYN-1001 : End Stage 2.4 | Map Gate; Time: 75.923506s wall, 75.468750s user + 0.234375s system = 75.703125s CPU (99.7%); Memory(MB): used = 1361, reserved = 1378, peak = 1361;
+SYN-1001 : End Stage 2.4 | Map Gate; Time: 80.897817s wall, 77.171875s user + 2.359375s system = 79.531250s CPU (98.3%); Memory(MB): used = 1406, reserved = 1394, peak = 1406;
 
 SYN-1001 : Packing model "design_top_wrapper" ...
 SYN-1001 : Stage 2.5 | Pack Gate
 SYN-4010 : Pack lib has 43 rtl pack models with 26 top pack blocks
 SYN-1014 : Optimize round 1
 SYN-1015 : Optimize round 1, 0 better
-SYN-4002 : Packing 17698 DFF/LATCH to SEQ ...
-SYN-1001 : Remove 417 carry adders
+SYN-4002 : Packing 14993 DFF/LATCH to SEQ ...
+SYN-1001 : Remove 538 carry adders
 RUN-1002 : start command "start_timer"
 8.888000
 15.000000
 15.000000
 13.333000
-RUN-1003 : finish command "start_timer" in  3.475281s wall, 3.453125s user + 0.015625s system = 3.468750s CPU (99.8%)
+RUN-1003 : finish command "start_timer" in  3.237489s wall, 2.937500s user + 0.125000s system = 3.062500s CPU (94.6%)
 
-RUN-1004 : used memory is 1335 MB, reserved memory is 1351 MB, peak memory is 1361 MB
+RUN-1004 : used memory is 1379 MB, reserved memory is 1367 MB, peak memory is 1406 MB
 RUN-1002 : start command "end_timer"
-SYN-4009 : Pack 334 carry chain into lslice
-SYN-1001 : End Stage 2.5 | Pack Gate; Time: 14.955550s wall, 10.687500s user + 4.234375s system = 14.921875s CPU (99.8%); Memory(MB): used = 1335, reserved = 1352, peak = 1361;
+SYN-4009 : Pack 411 carry chain into lslice
+SYN-1001 : End Stage 2.5 | Pack Gate; Time: 13.002281s wall, 8.750000s user + 3.593750s system = 12.343750s CPU (94.9%); Memory(MB): used = 1379, reserved = 1367, peak = 1406;
 
 RUN-1002 : start command "report_qor -step gate -file gate.qor"
 RUN-1002 : start command "start_timer"
-RUN-1003 : finish command "start_timer" in  3.867372s wall, 3.796875s user + 0.015625s system = 3.812500s CPU (98.6%)
+RUN-1003 : finish command "start_timer" in  3.785651s wall, 3.687500s user + 0.078125s system = 3.765625s CPU (99.5%)
 
-RUN-1004 : used memory is 1336 MB, reserved memory is 1352 MB, peak memory is 1361 MB
+RUN-1004 : used memory is 1380 MB, reserved memory is 1367 MB, peak memory is 1406 MB
 -----------------------------------------------------------
 | QoR metrics               |         value               |
 -----------------------------------------------------------
 | Timing                    |                             |
-|     Setup WNS             |         -732                |
-|     Setup TNS             |        -3246                |
-|     Num of violated S-EP  |            7                |
+|     Setup WNS             |        -1541                |
+|     Setup TNS             |       -44157                |
+|     Num of violated S-EP  |           58                |
 |     Hold WNS              |          114                |
 |     Hold TNS              |            0                |
 |     Num of violated H-EP  |            0                |
 -----------------------------------------------------------
 | Utilization               |                             |
-|     #registers            |        17698                |
-|     #luts                 |        16826                |
-|     #lut1                 |          120                |
-|     #lut1(~A)             |          120                |
-|     #slices               |         5278                |
-|     slices percentage     |       24.88%                |
-|     #RAMs                 |           59                |
+|     #registers            |        14993                |
+|     #luts                 |        17611                |
+|     #lut1                 |          122                |
+|     #lut1(~A)             |          122                |
+|     #slices               |         5460                |
+|     slices percentage     |       25.74%                |
+|     #RAMs                 |           55                |
 |     #DSPs                 |           14                |
-|     #f7mux                |        0.68%                |
-|     #MACROs               |          471                |
-|     #insts in MACRO       |         5429                |
+|     #f7mux                |        2.19%                |
+|     #MACROs               |          682                |
+|     #insts in MACRO       |         5745                |
 -----------------------------------------------------------
 | kept_net                  |                             |
-|     #syn_keep             |         2580                |
+|     #syn_keep             |         2362                |
 |     #keep_hier            |          844                |
 |     #dont_touch           |            0                |
 |     #mark_debug           |            0                |
 |     #max_fanout_keep      |            0                |
-|     #async_reg            |            6                |
+|     #async_reg            |           42                |
 -----------------------------------------------------------
-| Top 10% datanet fanout#   |        45.82                |
-| dff(single fanout)->dff   |         1064                |
+| Top 10% datanet fanout#   |        57.27                |
+| dff(single fanout)->dff   |         1603                |
 | dff(single fanout)->dram  |          129                |
 -----------------------------------------------------------
 | Over-quota path num*      |                             |
@@ -1424,43 +1397,45 @@ Note**: Rent shows the rent exponent value of the modules whose rent value excee
         Only modules under top are reported, and the threshold is defined as 0.7.
 
 Logic Level Distribution
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  Clock                                                                                               |  Period             |  0      |  1     |  2     |  3     |  4     |  5     |  6     |  7    |  8    |  9    |  10   |  11   |  12   |  13  |  14
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  HDMI_PIXEL_CLK                                                                                      |  13.333ns (75MHz)   |  1567   |  1091  |  614   |  1617  |  449   |  381   |  1138  |  54   |  22   |  232  |  260  |  127  |  508  |  36  |  9
-  HDMI_SERIAL_CLK                                                                                     |  2.666ns (375MHz)   |  20     |  41    |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
-  MIPI_RX_BYTE_CLK                                                                                    |  8.888ns (112MHz)   |  5793   |  2658  |  596   |  1535  |  997   |  574   |  139   |  0    |  55   |  18   |  0    |  0    |  0    |  0   |  0
-  mipi_rx_ck_pad                                                                                      |  2.222ns (450MHz)   |  0      |  0     |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
-  pll_clk_100m                                                                                        |  10.000ns (100MHz)  |  5      |  3     |  2     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
-  pll_clk_24m                                                                                         |  42.000ns (23MHz)   |  102    |  45    |  12    |  16    |  32    |  29    |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
-  sys_clk_50m                                                                                         |  20.000ns (50MHz)   |  131    |  2     |  0     |  106   |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
-  u_PLL/ph1p_phy_pll_wrapper_25a56e5ce2f9_Inst/u_PH1P_PHY_PLL.clkc[2]                                 |  20.000ns (50MHz)   |  107    |  136   |  108   |  299   |  92    |  32    |  86    |  2    |  22   |  23   |  2    |  17   |  0    |  0   |  0
-  u_PLL/ph1p_phy_pll_wrapper_25a56e5ce2f9_Inst/u_PH1P_PHY_PLL.clkc[3]                                 |  3.333ns (300MHz)   |  0      |  0     |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
-  u_mcu/MCU_521bd43d073e_Inst/PH1P_PHY_MCU_Inst.core_clk                                              |  3.333ns (300MHz)   |  0      |  0     |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
-  u_mipi_dphy_rx_ph1p_mipiio_wrapper/u_ph1p_mipiio_rx_wrapper/u_PH1P_LOGIC_DPHY_MIPI_RX.io_clk_pad_p  |  2.222ns (450MHz)   |  0      |  0     |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
-  u_mipi_dphy_rx_ph1p_mipiio_wrapper/u_ph1p_mipiio_rx_wrapper/u_PH1P_LOGIC_DPHY_MIPI_RX.tif_c16_in    |  8.888ns (112MHz)   |  0      |  0     |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
-  u_ph1p35_324_ddr_wrapper/u_ddr2/ctl_clk                                                             |  15.000ns (66MHz)   |  0      |  0     |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
-  u_ph1p35_324_ddr_wrapper/u_ddr2/ddr_clk                                                             |  3.750ns (266MHz)   |  0      |  0     |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
-  u_ph1p35_324_ddr_wrapper/u_ddr2/mcu_clk                                                             |  39.374ns (25MHz)   |  56     |  15    |  244   |  15    |  0     |  0     |  9     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
-  u_ph1p35_324_ddr_wrapper/u_ddr2/ref_clk                                                             |  15.000ns (66MHz)   |  0      |  0     |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
-  u_ph1p35_324_ddr_wrapper/u_ddr2/usr_clk                                                             |  15.000ns (66MHz)   |  2702   |  1640  |  751   |  942   |  682   |  477   |  258   |  54   |  199  |  36   |  106  |  1    |  0    |  0   |  0
-  Total                                                                                               |  NA                 |  10483  |  5631  |  2327  |  4530  |  2252  |  1493  |  1630  |  110  |  298  |  309  |  368  |  145  |  508  |  36  |  9
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-Note: The table count the worst 100000 paths, each endpoint count only one time.(30129 paths analyzed)
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  Clock                                                                                               |  Period             |  0     |  1     |  2     |  3     |  4     |  5     |  6     |  7    |  8    |  9    |  10   |  11   |  12   |  13  |  14
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  HDMI_PIXEL_CLK                                                                                      |  13.333ns (75MHz)   |  2173  |  1736  |  780   |  1622  |  504   |  463   |  1191  |  70   |  260  |  68   |  566  |  107  |  482  |  54  |  8
+  HDMI_SERIAL_CLK                                                                                     |  2.666ns (375MHz)   |  20    |  41    |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
+  MIPI_RX_BYTE_CLK                                                                                    |  8.888ns (112MHz)   |  3088  |  2543  |  825   |  819   |  218   |  156   |  361   |  2    |  16   |  71   |  2    |  0    |  0    |  0   |  0
+  mipi_rx_ck_pad                                                                                      |  2.222ns (450MHz)   |  0     |  0     |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
+  pll_clk_100m                                                                                        |  10.000ns (100MHz)  |  5     |  3     |  2     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
+  pll_clk_24m                                                                                         |  42.000ns (23MHz)   |  102   |  46    |  9     |  20    |  31    |  27    |  1     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
+  sys_clk_50m                                                                                         |  20.000ns (50MHz)   |  131   |  2     |  0     |  106   |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
+  u_PLL/ph1p_phy_pll_wrapper_25a56e5ce2f9_Inst/u_PH1P_PHY_PLL.clkc[2]                                 |  20.000ns (50MHz)   |  223   |  157   |  110   |  522   |  63    |  64    |  147   |  96   |  46   |  92   |  23   |  0    |  0    |  0   |  0
+  u_PLL/ph1p_phy_pll_wrapper_25a56e5ce2f9_Inst/u_PH1P_PHY_PLL.clkc[3]                                 |  3.333ns (300MHz)   |  0     |  0     |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
+  u_mcu/MCU_521bd43d073e_Inst/PH1P_PHY_MCU_Inst.core_clk                                              |  3.333ns (300MHz)   |  0     |  0     |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
+  u_mipi_dphy_rx_ph1p_mipiio_wrapper/u_ph1p_mipiio_rx_wrapper/u_PH1P_LOGIC_DPHY_MIPI_RX.io_clk_pad_p  |  2.222ns (450MHz)   |  0     |  0     |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
+  u_mipi_dphy_rx_ph1p_mipiio_wrapper/u_ph1p_mipiio_rx_wrapper/u_PH1P_LOGIC_DPHY_MIPI_RX.tif_c16_in    |  8.888ns (112MHz)   |  0     |  0     |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
+  u_ph1p35_324_ddr_wrapper/u_ddr2/ctl_clk                                                             |  15.000ns (66MHz)   |  0     |  0     |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
+  u_ph1p35_324_ddr_wrapper/u_ddr2/ddr_clk                                                             |  3.750ns (266MHz)   |  0     |  0     |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
+  u_ph1p35_324_ddr_wrapper/u_ddr2/mcu_clk                                                             |  39.374ns (25MHz)   |  56    |  15    |  244   |  15    |  0     |  6     |  3     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
+  u_ph1p35_324_ddr_wrapper/u_ddr2/ref_clk                                                             |  15.000ns (66MHz)   |  0     |  0     |  0     |  0     |  0     |  0     |  0     |  0    |  0    |  0    |  0    |  0    |  0    |  0   |  0
+  u_ph1p35_324_ddr_wrapper/u_ddr2/usr_clk                                                             |  15.000ns (66MHz)   |  2702  |  1638  |  753   |  941   |  680   |  472   |  271   |  48   |  197  |  36   |  107  |  3    |  0    |  0   |  0
+  Total                                                                                               |  NA                 |  8500  |  6181  |  2723  |  4045  |  1496  |  1188  |  1974  |  216  |  519  |  267  |  698  |  110  |  482  |  54  |  8
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Note: The table count the worst 100000 paths, each endpoint count only one time.(28461 paths analyzed)
 
 Hierarchical Rent Exponent Report
 +----------------------------------------------------------------------------------------------+
 |Inst                       |Model                      |Rent     |Cell     |Pin     |Term     |
 +----------------------------------------------------------------------------------------------+
-|top                        |design_top_wrapper         |0.21     |46111    |198437  |42       |
-|  u_hdmi_mixer             |hdmi_mixer_6               |0.50     |3408     |18930   |312      |
-|  u_hdmi_tx                |hdmi_tx_7                  |0.48     |2318     |8370    |145      |
-|  u_ph1p35_324_ddr_wrapper |ph1p35_324_ddr_wrapper_16  |0.47     |9983     |45012   |332      |
-|  u_red_target_tracker_99  |red_target_tracker_18      |0.46     |1526     |7496    |140      |
-|  u_color_detect_99        |color_detect_3             |0.40     |1485     |7716    |95       |
-|  u_isp_top                |isp_top_9                  |0.39     |16760    |66599   |181      |
-|  u_motion_detect_99       |motion_detect_15           |0.36     |1963     |9186    |72       |
-|  u_shape_recognizer_99    |shape_recognizer_simple_20 |0.35     |1483     |8291    |74       |
+|top                        |design_top_wrapper         |0.21     |44141    |208017  |44       |
+|  u_rgb24_denoise_9        |rgb24_denoise_21           |0.53     |1214     |5596    |205      |
+|  u_hdmi_mixer             |hdmi_mixer_7               |0.53     |3473     |19237   |406      |
+|  u_hdmi_tx                |hdmi_tx_8                  |0.48     |2319     |8384    |147      |
+|  u_ph1p35_324_ddr_wrapper |ph1p35_324_ddr_wrapper_18  |0.47     |9974     |44969   |332      |
+|  u_red_target_tracker_99  |red_target_tracker_20      |0.46     |1531     |7489    |146      |
+|  u_isp_top                |isp_top_11                 |0.43     |10118    |45937   |230      |
+|  u_color_detect_99        |color_detect_3             |0.38     |1441     |7531    |85       |
+|  u_motion_detect_99       |motion_detect_17           |0.35     |1962     |9241    |69       |
+|  u_shape_recognizer_99    |shape_recognizer_simple_23 |0.32     |1596     |9166    |63       |
+|  u_sobel_edge_9           |sobel_edge_24              |0.26     |1473     |14685   |67       |
 +----------------------------------------------------------------------------------------------+
 Note: Cell represents total number of cells inside module; Pin represents total number of pins
       which have net connection inside module; Term represents total number of PIs and POs of module.
@@ -1468,52 +1443,52 @@ Note: Cell represents total number of cells inside module; Pin represents total 
       A module with higher rent corresponds to highly connected logic and strong connectivity with others.
 Report gate stage QoR done.
 
-SYN-1001 : The design has 690 dangling syn_keep insts.
-RUN-1003 : finish command "report_qor -step gate -file gate.qor" in  12.766505s wall, 12.625000s user + 0.046875s system = 12.671875s CPU (99.3%)
+SYN-1001 : The design has 688 dangling syn_keep insts.
+RUN-1003 : finish command "report_qor -step gate -file gate.qor" in  12.124366s wall, 11.171875s user + 0.531250s system = 11.703125s CPU (96.5%)
 
-RUN-1004 : used memory is 1397 MB, reserved memory is 1380 MB, peak memory is 1397 MB
+RUN-1004 : used memory is 1408 MB, reserved memory is 1394 MB, peak memory is 1408 MB
 RUN-1002 : start command "report_area -file camera_to_dsi_display_gate.area"
-SYN-4034 : The count of slices with lut is 593.
-SYN-4035 : The count of slices with lut+ripple is 4277.
+SYN-4034 : The count of slices with lut is 1536.
+SYN-4035 : The count of slices with lut+ripple is 3084.
 RUN-1001 : standard
 ***Report Model: design_top_wrapper Device: PH1P35MDG324***
 
 Design Statistics
-#IO                        72   out of    160   45.00%
+#IO                        74   out of    160   46.25%
   #input                    9
   #output                  37
-  #inout                   26
-#lut                    22104
-  #lut1                   120
-  #lut2                  2852
-  #lut3                  5102
-  #lut4                  2183
-  #lut5                  2111
-  #lut6                  9736
-#reg                    17698
-  #slice reg            17698   out of  42432   41.71%
+  #inout                   28
+#lut                    23071
+  #lut1                   122
+  #lut2                  3270
+  #lut3                  4183
+  #lut4                  2469
+  #lut5                  2547
+  #lut6                 10480
+#reg                    14993
+  #slice reg            14993   out of  42432   35.33%
   #pad reg                  0
 
 Utilization Statistics
-#slice*                 17751   out of  21216   83.67%
-  #used ram               408
-    #dram lut             296
-    #shifter lut          112
-  #used logic           17343
-    #with luts*         11965
-    #with adder          4277
-    #reg only*           1101
-#f7mux                     72   out of  10608    0.68%
-#f8mux                      0   out of   5304    0.00%
-#eram                      59   out of    108   54.63%
-  #eram20k                 59
+#slice*                 18445   out of  21216   86.94%
+  #used ram               840
+    #dram lut             808
+    #shifter lut           32
+  #used logic           17605
+    #with luts*         14063
+    #with adder          3084
+    #reg only*            458
+#f7mux                    232   out of  10608    2.19%
+#f8mux                     80   out of   5304    1.51%
+#eram                      55   out of    108   50.93%
+  #eram20k                 55
   #fifo20k                  0
 #dsp                       14   out of     40   35.00%
 #mcu                        1   out of      1  100.00%
 #ddr_byte                   6   out of     12   50.00%
 #mipi_tx                    0   out of      2    0.00%
 #mipi_rx                    1   out of      2   50.00%
-#pad                       31   out of    160   19.38%
+#pad                       33   out of    160   20.62%
 #pll                        3   out of      6   50.00%
 #gclk                       3   out of     32    9.38%
 #lclk                       0   out of     12    0.00%
@@ -1523,11 +1498,11 @@ Utilization Statistics
 
 * Note! The LUT and Slice count after Optimize-Gate is not the final value, Run Optimize-place for a more realistic count.
 
-SYN-1001 : End Stage 2 | Optimize Gate; Time: 142.765097s wall, 136.890625s user + 5.437500s system = 142.328125s CPU (99.7%); Memory(MB): used = 1397, reserved = 1380, peak = 1397;
+SYN-1001 : End Stage 2 | Optimize Gate; Time: 179.812550s wall, 167.578125s user + 8.687500s system = 176.265625s CPU (98.0%); Memory(MB): used = 1408, reserved = 1394, peak = 1408;
 
-RUN-1003 : finish command "optimize_gate -packarea camera_to_dsi_display_gate.area" in  142.790158s wall, 136.906250s user + 5.437500s system = 142.343750s CPU (99.7%)
+RUN-1003 : finish command "optimize_gate -packarea camera_to_dsi_display_gate.area" in  179.841643s wall, 167.593750s user + 8.703125s system = 176.296875s CPU (98.0%)
 
-RUN-1004 : used memory is 1397 MB, reserved memory is 1380 MB, peak memory is 1397 MB
+RUN-1004 : used memory is 1408 MB, reserved memory is 1394 MB, peak memory is 1408 MB
 RUN-1002 : start command "legalize_phy_inst"
 SYN-1001 : Stage 3 | Legalize Phy Inst
 SYN-1011 : Flatten model design_top_wrapper
@@ -1547,16 +1522,16 @@ SYN-1001 : ADC: Instance "u_ph1p35_324_ddr_wrapper/u_ddr2/ph1p_ddrmc_wrapper/ph1
 SYN-1001 : ADC: Instance "u_ph1p35_324_ddr_wrapper/u_ddr2/ph1p_ddrmc_wrapper/ph1p_ddrmc_top/u_ddr_phy/u_ddrphy_top/u_ddrphy_clk/u_mlclk_2" LOCATION="X0Y59Z1"
 SYN-1001 : ADC: Instance "u_ph1p35_324_ddr_wrapper/u_ddr2/ph1p_ddrmc_wrapper/ph1p_ddrmc_top/u_ddr_phy/u_ddrphy_top/u_ddrphy_clk/u_pll0/u_pll_inst" LOCATION="X0Y40Z0"
 SYN-1001 : ADC: Instance "u_ph1p35_324_ddr_wrapper/u_ddr2/ph1p_ddrmc_wrapper/ph1p_ddrmc_top/u_ddr_phy/u_ddrphy_top/u_ddrphy_clk/u_pll1/u_pll_inst" LOCATION="X0Y79Z0"
-SYN-1001 : End Stage 3 | Legalize Phy Inst; Time: 0.387608s wall, 0.343750s user + 0.015625s system = 0.359375s CPU (92.7%); Memory(MB): used = 1397, reserved = 1380, peak = 1397;
+SYN-1001 : End Stage 3 | Legalize Phy Inst; Time: 0.319253s wall, 0.328125s user + 0.000000s system = 0.328125s CPU (102.8%); Memory(MB): used = 1408, reserved = 1394, peak = 1408;
 
 RUN-1002 : start command "update_timing"
 RUN-1002 : start command "start_timer"
-RUN-1003 : finish command "start_timer" in  3.523754s wall, 3.515625s user + 0.000000s system = 3.515625s CPU (99.8%)
+RUN-1003 : finish command "start_timer" in  3.758107s wall, 3.546875s user + 0.046875s system = 3.593750s CPU (95.6%)
 
-RUN-1004 : used memory is 1397 MB, reserved memory is 1380 MB, peak memory is 1397 MB
-RUN-1003 : finish command "update_timing" in  6.087751s wall, 6.093750s user + 0.000000s system = 6.093750s CPU (100.1%)
+RUN-1004 : used memory is 1408 MB, reserved memory is 1393 MB, peak memory is 1408 MB
+RUN-1003 : finish command "update_timing" in  6.124243s wall, 5.906250s user + 0.062500s system = 5.968750s CPU (97.5%)
 
-RUN-1004 : used memory is 1397 MB, reserved memory is 1380 MB, peak memory is 1397 MB
+RUN-1004 : used memory is 1408 MB, reserved memory is 1393 MB, peak memory is 1408 MB
 RUN-1002 : start command "report_timing_status -file camera_to_dsi_display_gate.ts"
 RUN-1002 : start command "report_timing_summary -file camera_to_dsi_display_gate.timing"
 RUN-1002 : start command "flow_status -file gate_flow.status -append_files gate.qor"
@@ -1568,7 +1543,7 @@ Device           : PH1P35MDG324
 Speed            : 3
 
 Timing Mode      : basic
-Setup            : WNS  -732ps  TNS    -3246ps  NUM_FEPS     7
+Setup            : WNS -1541ps  TNS   -44157ps  NUM_FEPS    58
 Hold             : WNS   114ps  TNS        0ps  NUM_FEPS     0
 
 Flow Statistics  :
@@ -1576,13 +1551,13 @@ RUN-1001 : Flow Statistics:
 RUN-1001 : ---------------------------------------------------------------------------------------------------
 RUN-1001 :      command     |  #calls  |  wall time   |  cpu time(s)  |  used memory(mb)  |  peak memory(mb)  
 RUN-1001 : ---------------------------------------------------------------------------------------------------
-RUN-1001 :   optimize_gate  |    1     |  2m22s(55%)  |   141(55%)    |       1397        |       1397        
-RUN-1001 :   optimize_rtl   |    1     |  1m51s(43%)  |   110(43%)    |       1163        |       1262        
-RUN-1001 :   import_device  |    1     |    2s(0%)    |     1(0%)     |        323        |        323        
-RUN-1001 :     read_adc     |    1     |    2s(0%)    |     2(0%)     |        798        |        799        
-RUN-1001 :     read_sdc     |    4     |    0s(0%)    |     0(0%)     |        792        |        799        
+RUN-1001 :   optimize_gate  |    1     |  2m59s(57%)  |   175(57%)    |       1408        |       1408        
+RUN-1001 :   optimize_rtl   |    1     |  2m5s(40%)   |   124(40%)    |       1172        |       1264        
+RUN-1001 :   import_device  |    1     |    3s(0%)    |     2(0%)     |        330        |        330        
+RUN-1001 :     read_adc     |    1     |    2s(0%)    |     2(0%)     |        819        |        820        
+RUN-1001 :     read_sdc     |    4     |    0s(0%)    |     0(0%)     |        812        |        820        
 RUN-1001 : ---------------------------------------------------------------------------------------------------
-RUN-1001 :       total      |    8     |    4m17s     |      254      |       1397        |       1397        
+RUN-1001 :       total      |    8     |     5m9s     |      303      |       1408        |       1408        
 RUN-1001 : ---------------------------------------------------------------------------------------------------
 RUN-1002 : start command "export_db camera_to_dsi_display_gate.db"
 RUN-1001 : Exported flow parameters
@@ -1603,9 +1578,9 @@ RUN-1001 : Exported timing constraints
 RUN-1001 : Exported IO constraints
 RUN-1001 : Exported Inst constraints
 RUN-1001 : Exported ChipWatcher
-RUN-1003 : finish command "export_db camera_to_dsi_display_gate.db" in  1.617538s wall, 2.359375s user + 0.015625s system = 2.375000s CPU (146.8%)
+RUN-1003 : finish command "export_db camera_to_dsi_display_gate.db" in  1.705220s wall, 2.437500s user + 0.140625s system = 2.578125s CPU (151.2%)
 
-RUN-1004 : used memory is 1419 MB, reserved memory is 1516 MB, peak memory is 1419 MB
+RUN-1004 : used memory is 1431 MB, reserved memory is 1530 MB, peak memory is 1431 MB
 RUN-1002 : start command "export_flow_status -s read_design -e opt_gate"
 RUN-1002 : start command "flow_status"
 
@@ -1617,18 +1592,18 @@ Device           : PH1P35MDG324
 Speed            : 3
 
 Timing Mode      : basic
-Setup            : WNS  -732ps  TNS    -3246ps  NUM_FEPS     7
+Setup            : WNS -1541ps  TNS   -44157ps  NUM_FEPS    58
 Hold             : WNS   114ps  TNS        0ps  NUM_FEPS     0
 
 RUN-1001 : Flow Statistics:
 RUN-1001 : ---------------------------------------------------------------------------------------------------
 RUN-1001 :      command     |  #calls  |  wall time   |  cpu time(s)  |  used memory(mb)  |  peak memory(mb)  
 RUN-1001 : ---------------------------------------------------------------------------------------------------
-RUN-1001 :   optimize_gate  |    1     |  2m22s(55%)  |   141(55%)    |       1397        |       1397        
-RUN-1001 :   optimize_rtl   |    1     |  1m51s(43%)  |   110(43%)    |       1163        |       1262        
-RUN-1001 :   import_device  |    1     |    2s(0%)    |     1(0%)     |        323        |        323        
-RUN-1001 :     read_adc     |    1     |    2s(0%)    |     2(0%)     |        798        |        799        
-RUN-1001 :     read_sdc     |    4     |    0s(0%)    |     0(0%)     |        792        |        799        
+RUN-1001 :   optimize_gate  |    1     |  2m59s(57%)  |   175(57%)    |       1408        |       1408        
+RUN-1001 :   optimize_rtl   |    1     |  2m5s(40%)   |   124(40%)    |       1172        |       1264        
+RUN-1001 :   import_device  |    1     |    3s(0%)    |     2(0%)     |        330        |        330        
+RUN-1001 :     read_adc     |    1     |    2s(0%)    |     2(0%)     |        819        |        820        
+RUN-1001 :     read_sdc     |    4     |    0s(0%)    |     0(0%)     |        812        |        820        
 RUN-1001 : ---------------------------------------------------------------------------------------------------
-RUN-1001 :       total      |    8     |    4m17s     |      254      |       1397        |       1397        
+RUN-1001 :       total      |    8     |     5m9s     |      303      |       1408        |       1408        
 RUN-1001 : ---------------------------------------------------------------------------------------------------

@@ -37,6 +37,7 @@
             </File>
             <File Path="../user_source/hdl_source/signal_delay.v">
                 <FileInfo>
+                    <Attr Name="AutoExcluded" Val="true"/>
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
@@ -406,6 +407,22 @@
                     <Attr Name="CompileOrder" Val="65"/>
                 </FileInfo>
             </File>
+            <File Path="../user_source/hdl_source/rgb24_denoise_9.v">
+                <FileInfo>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="66"/>
+                </FileInfo>
+            </File>
+            <File Path="../user_source/hdl_source/image_effects_9.v">
+                <FileInfo>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="67"/>
+                </FileInfo>
+            </File>
         </Verilog>
         <System_Verilog>
             <File Path="../user_source/hdl_source/mipi_dphy_rx/mipi_dphy_rx_ph1p_mipiio_wrapper.sv">
@@ -520,6 +537,7 @@
             </File>
             <File Path="../user_source/ip_source/divider/divider.ipc">
                 <FileInfo>
+                    <Attr Name="AutoExcluded" Val="true"/>
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>

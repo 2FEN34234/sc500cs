@@ -53,7 +53,11 @@ module hdmi_mixer #(
     output wire       O_hdmi_vsync,
     output wire       O_hdmi_hsync,
     output wire       O_hdmi_de,
-    output wire [23:0] O_hdmi_data
+    output wire [23:0] O_hdmi_data,
+    // Expose the pre-effect video and the opaque OSD mask so the _9 Sobel
+    // stage can process only camera pixels and then restore OSD colors.
+    output wire [23:0] O_base_data,
+    output wire        O_overlay_valid
 );
 
     hdmi_mixer_image9 #(
@@ -122,7 +126,7 @@ module hdmi_mixer #(
         .O_hdmi_hsync    (O_hdmi_hsync),
         .O_hdmi_de       (O_hdmi_de),
         .O_hdmi_data     (O_hdmi_data),
-        .O_base_data     (),
-        .O_overlay_valid ()
+        .O_base_data     (O_base_data),
+        .O_overlay_valid (O_overlay_valid)
     );
 endmodule

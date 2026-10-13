@@ -53,6 +53,39 @@ module ui_osd #(
     localparam [11:0] MENU_Y0 = 12'd680;
     localparam integer CLOCK_X0 = H_ACTIVE - 288;
     localparam integer CLOCK_Y0 = 16;
+    reg [7:0] rtc_hours_frame, rtc_minutes_frame, rtc_seconds_frame;
+    reg rtc_valid_frame;
+
+    // Normalize the DS3231 12/24-hour encoding to 24-hour BCD. FF marks an
+    // invalid hour. Constant mappings keep division out of the pixel path.
+    function [7:0] hour24;
+        input [7:0] raw;
+        begin
+            hour24 = 8'hff;
+            if (!raw[7]) begin
+                if (!raw[6]) begin
+                    if (raw[3:0] <= 9 && raw[5:4] <= 2 && raw[5:0] <= 6'h23)
+                        hour24 = {2'b00, raw[5:0]};
+                end else begin
+                    case ({raw[5], raw[4:0]})
+                        6'h01: hour24=8'h01; 6'h02: hour24=8'h02;
+                        6'h03: hour24=8'h03; 6'h04: hour24=8'h04;
+                        6'h05: hour24=8'h05; 6'h06: hour24=8'h06;
+                        6'h07: hour24=8'h07; 6'h08: hour24=8'h08;
+                        6'h09: hour24=8'h09; 6'h10: hour24=8'h10;
+                        6'h11: hour24=8'h11; 6'h12: hour24=8'h00;
+                        6'h21: hour24=8'h13; 6'h22: hour24=8'h14;
+                        6'h23: hour24=8'h15; 6'h24: hour24=8'h16;
+                        6'h25: hour24=8'h17; 6'h26: hour24=8'h18;
+                        6'h27: hour24=8'h19; 6'h28: hour24=8'h20;
+                        6'h29: hour24=8'h21; 6'h30: hour24=8'h22;
+                        6'h31: hour24=8'h23; 6'h32: hour24=8'h12;
+                        default: hour24=8'hff;
+                    endcase
+                end
+            end
+        end
+    endfunction
 
     function [7:0] text_char;
         input [2:0] line;
@@ -447,7 +480,7 @@ module ui_osd #(
             pixel = 24'h101820;
             if((x < CLOCK_X0 + 4) || (x >= CLOCK_X0 + 280) ||
                (y < CLOCK_Y0 + 4) || (y >= CLOCK_Y0 + 40))
-                pixel = (I_rtc_valid && !I_rtc_error && !I_rtc_osf) ?
+                pixel = rtc_valid_frame ?
                         24'h309060 : 24'h904030;
             if((x >= CLOCK_X0 + 8) && (x < CLOCK_X0 + 264) &&
                (y >= CLOCK_Y0 + 8) && (y < CLOCK_Y0 + 36)) begin
@@ -456,19 +489,19 @@ module ui_osd #(
                 col = text_x[4:2];
                 row = (y - (CLOCK_Y0 + 8)) >> 2;
                 case(char_no)
-                    4'd0: ch = I_rtc_valid ? ("0" + I_rtc_hours[7:4]) : "-";
-                    4'd1: ch = I_rtc_valid ? ("0" + I_rtc_hours[3:0]) : "-";
+                    4'd0: ch = rtc_valid_frame ? ("0" + rtc_hours_frame[7:4]) : "-";
+                    4'd1: ch = rtc_valid_frame ? ("0" + rtc_hours_frame[3:0]) : "-";
                     4'd2: ch = ":";
-                    4'd3: ch = I_rtc_valid ? ("0" + I_rtc_minutes[7:4]) : "-";
-                    4'd4: ch = I_rtc_valid ? ("0" + I_rtc_minutes[3:0]) : "-";
+                    4'd3: ch = rtc_valid_frame ? ("0" + rtc_minutes_frame[7:4]) : "-";
+                    4'd4: ch = rtc_valid_frame ? ("0" + rtc_minutes_frame[3:0]) : "-";
                     4'd5: ch = ":";
-                    4'd6: ch = I_rtc_valid ? ("0" + I_rtc_seconds[7:4]) : "-";
-                    4'd7: ch = I_rtc_valid ? ("0" + I_rtc_seconds[3:0]) : "-";
+                    4'd6: ch = rtc_valid_frame ? ("0" + rtc_seconds_frame[7:4]) : "-";
+                    4'd7: ch = rtc_valid_frame ? ("0" + rtc_seconds_frame[3:0]) : "-";
                     default: ch = "-";
                 endcase
                 glyph = glyph_bits(ch, row);
                 if((col < 3'd5) && ((glyph & (5'b10000 >> col)) != 0))
-                    pixel = (I_rtc_valid && !I_rtc_error && !I_rtc_osf) ?
+                    pixel = rtc_valid_frame ?
                             24'hffffff : 24'hffb080;
             end
         end
@@ -477,6 +510,8 @@ module ui_osd #(
     always @(posedge I_clk or negedge I_rst_n) begin
         if(!I_rst_n) begin
             x <= 0; y <= 0; de_d <= 0; vs_d <= 0;
+            rtc_hours_frame <= 0; rtc_minutes_frame <= 0; rtc_seconds_frame <= 0;
+            rtc_valid_frame <= 0;
             exposure_bar_width <= 8'd48;
             gain_bar_width <= 8'd64;
             pan_bar_width <= 8'd62;
@@ -491,6 +526,15 @@ module ui_osd #(
             de_d <= I_de;
             if(I_vsync && !vs_d) begin
                 x <= 0; y <= 0;
+                // Freeze time and health for this frame so a refresh cannot
+                // replace only some digits during active video.
+                rtc_hours_frame <= hour24(I_rtc_hours);
+                rtc_minutes_frame <= I_rtc_minutes;
+                rtc_seconds_frame <= I_rtc_seconds;
+                rtc_valid_frame <= I_rtc_valid && !I_rtc_error && !I_rtc_osf &&
+                                   hour24(I_rtc_hours) != 8'hff &&
+                                   I_rtc_minutes <= 8'h59 && I_rtc_minutes[3:0] <= 9 &&
+                                   I_rtc_seconds <= 8'h59 && I_rtc_seconds[3:0] <= 9;
                 // The bars update once per frame.  Shift/add approximations
                 // avoid putting a multiplier/divider in the pixel data path.
                 exposure_bar_width <= (I_exposure >= 16'd5990) ? 8'd127 :

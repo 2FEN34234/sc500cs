@@ -43,6 +43,10 @@ typedef struct {
     uint32_t servo_menu_available;
     uint32_t image_step, image_effect, image_target, logo_enable;
     int touch_capture; /* -1: none, 0..3: slider, 4: toggle, 5: AF, 6: row */
+    /* A servo drag is relative to the point where the finger went down. */
+    uint8_t servo_touch_active;
+    uint16_t servo_touch_x0, servo_touch_y0;
+    uint16_t servo_touch_pan0, servo_touch_tilt0;
 } MenuState;
 enum { MENU_AF = 1, MENU_FOCUS_UP = 2, MENU_FOCUS_DOWN = 4,
        MENU_REACQUIRE = 8 };
@@ -84,6 +88,7 @@ static inline unsigned menu_key(MenuState *s, unsigned keys)
 {
     /* Physical keys cancel a drag so old touch movement cannot overwrite it. */
     s->touch_capture = -1;
+    s->servo_touch_active = 0;
     if(!s->menu) {
         if(keys & 4) return MENU_AF;
         if(keys & 1) return MENU_FOCUS_UP;
@@ -109,29 +114,71 @@ static inline void menu_slider(MenuState *s, unsigned row, unsigned x)
     if(row == 1) s->gain = 16 + p;
 }
 
-/* Map a touch position directly to both servo axes.  The full 1920x1080
- * image is active: left/right controls PAN and top/bottom controls TILT.
- * Quantizing to 5 us removes jitter while remaining much finer than the old
- * 25 us menu increment. */
+static inline int touch_in_menu_area(const MenuState *s, const TouchEvent *e)
+{
+    unsigned x = e->x, y = e->y;
+    /* Match ui_osd.v: lower-left menu panel plus its always-visible button. */
+    if(s->menu && x >= 24u && x < 492u && y >= 680u && y < 1004u)
+        return 1;
+    if(x >= 24u && x < 220u && y >= 1016u && y < 1080u)
+        return 1;
+    return 0;
+}
+
+static inline unsigned servo_clamp_delta(int value)
+{
+    if(value < (int)SERVO_TOUCH_MIN_US) return SERVO_TOUCH_MIN_US;
+    if(value > (int)SERVO_TOUCH_MAX_US) return SERVO_TOUCH_MAX_US;
+    return (unsigned)value;
+}
+
+/* Apply a relative drag.  The finger-down point is the origin and the servo
+ * values at that instant are the base.  One screen pixel is approximately
+ * one microsecond; quantizing to 5 us filters HID report jitter without
+ * returning to the old coarse menu step. */
 static inline unsigned touch_servo_apply(MenuState *s, const TouchEvent *e)
 {
-    unsigned x, y, pan, tilt;
-    if(e->type != TOUCH_DOWN && e->type != TOUCH_MOVE && e->type != TOUCH_UP)
+    int pan, tilt;
+    unsigned dx, dy;
+    if(e->type == TOUCH_CANCEL || e->type == TOUCH_UP) {
+        if(e->type == TOUCH_UP && s->servo_touch_active) {
+            dx = (e->x >= s->servo_touch_x0) ?
+                 (unsigned)e->x - s->servo_touch_x0 : 0u;
+            dy = (e->y >= s->servo_touch_y0) ?
+                 (unsigned)e->y - s->servo_touch_y0 : 0u;
+            pan = (e->x >= s->servo_touch_x0) ?
+                  (int)s->servo_touch_pan0 + (int)dx :
+                  (int)s->servo_touch_pan0 - (int)(s->servo_touch_x0 - e->x);
+            tilt = (e->y >= s->servo_touch_y0) ?
+                   (int)s->servo_touch_tilt0 - (int)dy :
+                   (int)s->servo_touch_tilt0 + (int)(s->servo_touch_y0 - e->y);
+            s->servo_pan_us = servo_clamp_delta((pan / SERVO_TOUCH_STEP_US) * SERVO_TOUCH_STEP_US);
+            s->servo_tilt_us = servo_clamp_delta((tilt / SERVO_TOUCH_STEP_US) * SERVO_TOUCH_STEP_US);
+        }
+        s->servo_touch_active = 0;
         return 0;
-    x = e->x > 1919u ? 1919u : e->x;
-    y = e->y > 1079u ? 1079u : e->y;
-    pan = SERVO_TOUCH_MIN_US +
-          (x * (SERVO_TOUCH_MAX_US - SERVO_TOUCH_MIN_US) + 959u) / 1919u;
-    tilt = SERVO_TOUCH_MAX_US -
-           (y * (SERVO_TOUCH_MAX_US - SERVO_TOUCH_MIN_US) + 539u) / 1079u;
-    pan = (pan / SERVO_TOUCH_STEP_US) * SERVO_TOUCH_STEP_US;
-    tilt = (tilt / SERVO_TOUCH_STEP_US) * SERVO_TOUCH_STEP_US;
-    if(pan < SERVO_TOUCH_MIN_US) pan = SERVO_TOUCH_MIN_US;
-    if(pan > SERVO_TOUCH_MAX_US) pan = SERVO_TOUCH_MAX_US;
-    if(tilt < SERVO_TOUCH_MIN_US) tilt = SERVO_TOUCH_MIN_US;
-    if(tilt > SERVO_TOUCH_MAX_US) tilt = SERVO_TOUCH_MAX_US;
-    s->servo_pan_us = pan;
-    s->servo_tilt_us = tilt;
+    }
+    if(e->type == TOUCH_DOWN) {
+        s->servo_touch_active = 0;
+        /* Menu controls have ownership of their rectangle. */
+        if(touch_in_menu_area(s, e)) return 0;
+        s->servo_touch_active = 1;
+        s->servo_touch_x0 = e->x;
+        s->servo_touch_y0 = e->y;
+        s->servo_touch_pan0 = s->servo_pan_us;
+        s->servo_touch_tilt0 = s->servo_tilt_us;
+        return 0;
+    }
+    if(e->type != TOUCH_MOVE || !s->servo_touch_active) return 0;
+
+    pan = (e->x >= s->servo_touch_x0) ?
+          (int)s->servo_touch_pan0 + ((int)e->x - s->servo_touch_x0) :
+          (int)s->servo_touch_pan0 - ((int)s->servo_touch_x0 - e->x);
+    tilt = (e->y >= s->servo_touch_y0) ?
+           (int)s->servo_touch_tilt0 - ((int)e->y - s->servo_touch_y0) :
+           (int)s->servo_touch_tilt0 + ((int)s->servo_touch_y0 - e->y);
+    s->servo_pan_us = servo_clamp_delta((pan / SERVO_TOUCH_STEP_US) * SERVO_TOUCH_STEP_US);
+    s->servo_tilt_us = servo_clamp_delta((tilt / SERVO_TOUCH_STEP_US) * SERVO_TOUCH_STEP_US);
     return 0;
 }
 

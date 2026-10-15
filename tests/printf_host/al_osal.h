@@ -1,0 +1,1 @@
+/* Async logging is disabled in the host formatter tests. */

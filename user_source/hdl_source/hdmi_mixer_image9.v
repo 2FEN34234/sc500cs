@@ -33,7 +33,7 @@ module hdmi_mixer_image9 #(
 
     // 运行时调试（由 MCU APB 菜单写入，默认全 0 = 原显示）
     input wire[2:0]   I_dbg_mode,      // 0=正常 1=彩条 2=灰阶 3=全黑 4=全白 5=视频+诊断条
-    input wire[2:0]   I_dbg_step,      // 当前调试档位 1..5（屏幕右上角显示数字）
+    input wire[2:0]   I_dbg_step,      // 保留硬件档位 2..5，屏幕编号 1..4
     input wire[2:0]   I_dbg_effect,    // 0原图 1灰度 2反色 3二值 4怀旧 5轻量边缘
     input wire        I_dbg_awb_off,   // 1 = AWB 已被旁路（右上角指示灯变红）
     input wire        I_recog_mode,    // 1 = 图形识别专用档：关闭普通 OSD，只保留识别结果
@@ -649,6 +649,7 @@ module hdmi_mixer_image9 #(
     reg [2:0]  S_num_row;
     reg [4:0]  S_num_bits;
     reg        S_num_on;
+    wire [2:0] S_display_step = (I_dbg_step >= 3'd2) ? I_dbg_step - 3'd1 : 3'd1;
 
     always @(posedge I_clk or negedge I_rst_n) begin
         if(!I_rst_n) begin
@@ -687,7 +688,7 @@ module hdmi_mixer_image9 #(
                 S_num_col = S_num_lx[5:3] - 3'd1;            // 0..4
                 S_num_row = S_num_ly[5:3] - 3'd1;            // 0..6
 
-                case({I_dbg_step, S_num_row})
+                case({S_display_step, S_num_row})
                     6'd0 : S_num_bits = 5'b01110;   // 0
                     6'd1 : S_num_bits = 5'b10001;
                     6'd2 : S_num_bits = 5'b10001;

@@ -41,19 +41,31 @@ module mc_to_user_interface (
     wire        S_fifo_rd_valid;
     wire        S_fifo_empty;   
 
-    assign S_fifo_wr_en = I_ddr_user_wr_en | I_ddr_user_rd_en;
+    // The generated soft FIFO holds its pointers in reset for TWO clocks
+    // after rst falls (asy_rst0/asy_rst1). afull is already low then, so it
+    // cannot by itself advertise acceptance. Otherwise video_out's first
+    // read is counted upstream but discarded by the still-reset FIFO.
+    reg [1:0] fifo_released;
+    always @(posedge I_clk or negedge I_rst_n) begin
+        if(!I_rst_n) fifo_released<=2'b00;
+        else fifo_released<={fifo_released[0],1'b1};
+    end
+
+    assign S_fifo_wr_en = fifo_released[1] && (I_ddr_user_wr_en | I_ddr_user_rd_en);
 
     assign S_fifo_wr_data = {I_ddr_user_wr_en,I_ddr_user_rd_en,I_ddr_user_addr,I_ddr_user_wr_data};
 
-    assign S_fifo_rd_en = I_mc_app_rdy & I_mc_app_wdf_rdy & (~S_fifo_empty);
+    assign S_fifo_rd_en = fifo_released[1] & I_mc_app_rdy & I_mc_app_wdf_rdy & (~S_fifo_empty);
 
-    assign O_ddr_user_ready = ~S_fifio_pro_full;
+    assign O_ddr_user_ready = fifo_released[1] & (~S_fifio_pro_full);
 
     assign O_mc_app_en = S_fifo_rd_en;
 
     assign O_mc_app_addr = O_mc_app_en ? S_fifo_rd_data[152:128] : 'd0;
 
-    assign O_mc_app_cmd = O_mc_app_en && S_fifo_rd_data[153] ? 3'd1 : 3'd0;
+    // Decode the queued command even while stalled. The DDR wrapper must
+    // select that command's ready channel BEFORE this FIFO is popped.
+    assign O_mc_app_cmd = !S_fifo_empty && S_fifo_rd_data[153] ? 3'd1 : 3'd0;
 
     assign O_mc_app_wdf_wren = O_mc_app_en & S_fifo_rd_data[154];
 

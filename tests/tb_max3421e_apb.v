@@ -17,8 +17,15 @@ module tb_max3421e_apb;
         if(lens_retry) retry_pulses=retry_pulses+1;
         if(lens_read) read_pulses=read_pulses+1;
     end
-    wire [1:0] index;
+    wire [2:0] index;
     wire [15:0] exposure, gain;
+    reg [31:0] rtc_result=0;
+    wire [31:0] rtc_t0,rtc_t1;
+    wire rtc_set;
+    wire [1:0] wifi_ctrl;
+    reg [1:0] wifi_pads=2'b11;
+    integer rtc_pulses=0;
+    always @(posedge clk) if(rtc_set) rtc_pulses=rtc_pulses+1;
 
     mcu_ui_apb_regs dut (
         .I_clk(clk), .I_rst(rst), .I_button(4'hf), .I_usb_int_n(int_n),
@@ -28,6 +35,9 @@ module tb_max3421e_apb;
         .O_pready(ready), .O_pslverr(error), .O_menu_enable(menu),
         .O_edit_enable(edit), .O_info_enable(info), .O_menu_index(index),
         .O_exposure(exposure), .O_gain(gain),
+        .I_rtc_set_status(rtc_result),.O_rtc_set_time0(rtc_t0),
+        .O_rtc_set_time1(rtc_t1),.O_rtc_set(rtc_set),
+        .O_wifi_ctrl(wifi_ctrl), .I_wifi_pads(wifi_pads),
         .I_lens_busy(1'b0), .I_lens_init_done(1'b0), .I_lens_error(1'b1),
         .I_focus_metric(32'd1234),
         .I_lens_diag(32'h00130110), .I_lens_tx_count(32'd1),
@@ -57,7 +67,45 @@ module tb_max3421e_apb;
         repeat (5) @(negedge clk);
         if (res_n !== 0 || spi_enable !== 0) $fatal(1, "Unsafe reset state");
         rst = 0;
+        if(wifi_ctrl!==0) $fatal(1,"ESP reset/boot strap not released");
+        read_check('h10,3990);
+        write_reg('h10,5990,4'hf);read_check('h10,3990);
+        write_reg('h10,3991,4'hf);read_check('h10,3990);
+        write_reg('h10,0,4'hf);read_check('h10,3);
+        write_reg('h10,2000,4'hf);read_check('h10,2000);
+        write_reg('h10,3990,4'hf);
+        read_check('h98,32'h41465231);
+        read_check('h94,32'h01e00370);
+        write_reg('h94,32'hffffffff,4'hf);read_check('h94,32'h83c006e0);
+        write_reg('h94,0,4'h7);read_check('h94,32'h83c006e0);
+        write_reg('h94,32'h80000000,4'hf);read_check('h94,32'h80000000);
+        read_check('h90,32'h57494631);
+        read_check('h88,0);read_check('h8c,3);
+        write_reg('h88,3,4'he);read_check('h88,0);
+        write_reg('h88,1,4'h1);read_check('h88,1);
+        if(wifi_ctrl!==1) $fatal(1,"ESP reset control");
+        write_reg('h88,3,4'h1);read_check('h88,3);
+        wifi_pads=0;read_check('h8c,0);
+        write_reg('h88,0,4'h1);wifi_pads=3;
+        if(wifi_ctrl!==0) $fatal(1,"ESP pins not released");
         read_check(0, 32'h55494d55);
+        read_check('h74, 32'h50494331);
+        read_check('h70, 32'h1050);
+        write_reg('h70, 32'hffff, 4'h1);
+        read_check('h70, 32'h1050);
+        write_reg('h70, 32'hffff, 4'h3);
+        read_check('h70, 32'hf9ff);
+        write_reg('h70, 32'h1050, 4'hf);
+        write_reg('h08, 9, 4'hf);
+        read_check('h08, 9);
+        write_reg('h08,17,4'h1);read_check('h08,17);
+        if(!dut.O_mode_page || dut.O_picture_page) $fatal(1,"mode page control");
+        write_reg('h08,9,4'h1);
+        read_check('h58,32'h102);
+        write_reg('h58,0,4'h1);read_check('h58,2);
+        write_reg('h58,1,4'h1);read_check('h58,2);
+        write_reg('h58,7,4'h1);read_check('h58,5);
+        write_reg('h58,32'h102,4'h1);
         read_check('h30, 4);
         read_check('h34, 1234);
         read_check('h38, 32'h4c494333);
@@ -109,7 +157,19 @@ module tb_max3421e_apb;
         write_reg('h20, 0, 4'hf);
         read_check('h20, 0);
         read_check('h08, 7);
+        read_check('h84,32'h52544332);
+        write_reg('h78,32'h00123456,4'hf);write_reg('h7c,32'h26101302,4'hf);
+        write_reg('h78,0,4'h1);read_check('h78,32'h00123456);
+        write_reg('h80,32'h53455431,4'h1);
+        write_reg('h80,0,4'hf);
+        if(rtc_pulses!=0) $fatal(1,"RTC command accepted partial/bad key");
+        write_reg('h80,32'h53455431,4'hf);repeat(2) @(negedge clk);
+        if(rtc_pulses!=1 || rtc_t1!=32'h26101302) $fatal(1,"RTC command staging/pulse");
+        rtc_result=1;write_reg('h80,32'h53455431,4'hf);repeat(2) @(negedge clk);
+        if(rtc_pulses!=1) $fatal(1,"RTC busy command not rejected");
+        read_check('h80,1);
         rst = 1; #1;
+        if(wifi_ctrl!==0) $fatal(1,"Reset left ESP in download mode");
         if (res_n !== 0 || spi_enable !== 0) $fatal(1, "Reset did not isolate USB");
         $display("PASS: USB capability, APB phases/strobes, reset, INT CDC, UI registers");
         $finish;

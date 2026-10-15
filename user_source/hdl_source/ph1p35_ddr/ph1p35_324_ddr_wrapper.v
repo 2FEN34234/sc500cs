@@ -37,6 +37,7 @@ module ph1p35_324_ddr_wrapper (
 );
 
     wire         ddrphy_rdy;
+    wire         dhi_clk;
 
     wire [24:0]  paxi_awaddr;
     wire         paxi_awvalid;
@@ -71,8 +72,10 @@ module ph1p35_324_ddr_wrapper (
     assign paxi_rready              = 1'b1                                      ;
     assign O_mc_app_rd_data        = paxi_rdata                                 ; 
     assign O_mc_app_rd_data_valid  = paxi_rvalid                                ;
-    assign O_mc_app_rdy            = paxi_arready || paxi_awready               ;
-    assign O_mc_app_wdf_rdy        = paxi_awready                               ;
+    // Read acceptance must never depend on write-address readiness.
+    // Writes transfer address and data together and require both ready.
+    assign O_mc_app_rdy            = I_mc_app_cmd[0] ? paxi_arready : paxi_awready;
+    assign O_mc_app_wdf_rdy        = I_mc_app_cmd[0] ? 1'b1 : paxi_wready;
 
 
     ddr2 u_ddr2 (

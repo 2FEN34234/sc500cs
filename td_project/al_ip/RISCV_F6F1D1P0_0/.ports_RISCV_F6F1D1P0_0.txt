@@ -27,8 +27,8 @@ gpio6_dir; 1
 gpio7_in; 1
 gpio7_out; 1
 gpio7_dir; 1
-uart0_tx; 0
-uart0_rx; 0
+uart0_tx; 1
+uart0_rx; 1
 uart1_tx; 1
 uart1_rx; 1
 i2c_sda_in; 1

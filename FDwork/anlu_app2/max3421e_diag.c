@@ -2,12 +2,13 @@
 #include "al_qspi_dev.h"
 #include "al_misc_ll.h"
 #include "max3421e_diag.h"
+/* Keep both applications on the same compact USB implementation. */
+#pragma GCC optimize ("Os")
 
-/* Capture build: suppress diagnostics on USART1; only the touchscreen
- * interrupt reports below are emitted. Set to 0 when normal diagnostics are
- * needed again. */
-#define USB_TOUCH_ONLY_SERIAL 1
-#if USB_TOUCH_ONLY_SERIAL
+/* Keep USB diagnostics quiet while USART1 is used for SD recording tests.
+ * HID reception, decoding and menu input remain active. */
+#define USB_QUIET_SERIAL 1
+#if USB_QUIET_SERIAL
 #define diag_printf(...) ((void)0)
 #else
 #define diag_printf al_printf
@@ -75,7 +76,6 @@ typedef struct {
     uint16_t report_length;
     uint8_t rcv_toggle;
     uint8_t ready;
-    uint8_t report_dumped;
 } HidEndpoint;
 static HidEndpoint hid_endpoints[HID_MAX_INTERFACES];
 static unsigned hid_endpoint_count;
@@ -399,7 +399,6 @@ static void host_print_configuration(const uint8_t *data, unsigned length)
         hid_endpoints[i].report_length = 0u;
         hid_endpoints[i].rcv_toggle = HCTL_RCVTOG0;
         hid_endpoints[i].ready = 0u;
-        hid_endpoints[i].report_dumped = 0u;
     }
     while (p + 2u <= length) {
         unsigned dlen = data[p], type = data[p + 1u];
@@ -487,7 +486,6 @@ static void hid_read_report_descriptors(unsigned ep0_mps)
         }
         hid_dump_report(hid_report_descriptor, got, ep->interface_number);
         ep->ready = 1u;
-        ep->report_dumped = 0u;
         diag_printf("MAX3421E: HID poll ready iface=%u ep=0x%02x maxpkt=%u interval=%u\r\n",
                   (unsigned)ep->interface_number,
                   (unsigned)ep->endpoint_address,
@@ -522,8 +520,7 @@ static int hid_interrupt_in(HidEndpoint *ep, uint8_t *data,
 static void hid_poll_reports(void)
 {
     uint8_t report[64];
-    unsigned i, got, j;
-    int nonzero;
+    unsigned i, got;
     int rc;
     for (i = 0; i < hid_endpoint_count; ++i) {
         HidEndpoint *ep = &hid_endpoints[i];
@@ -536,21 +533,6 @@ static void hid_poll_reports(void)
         if (rc || got == 0u) continue;
         if (touch_decode(&touch_decoder, report, got, &touch_event))
             touch_pending = 1u;
-        nonzero = 0;
-        for (j = 0; j < got; ++j)
-            if (report[j] != 0u) { nonzero = 1; break; }
-        /* Keep a couple of idle packets to establish the report shape, then
-         * print every non-zero packet so a later touch is never missed. */
-        if (nonzero || ep->report_dumped < 2u) {
-            al_printf("TOUCH_REPORT iface=%u ep=0x%02x len=%u data=",
-                      (unsigned)ep->interface_number,
-                      (unsigned)ep->endpoint_address, got);
-            for (j = 0; j < got; ++j)
-                al_printf("%02x%s", report[j], (j + 1u == got) ? "" : " ");
-            al_printf("\r\n");
-            if (!nonzero && ep->report_dumped != 0xffu)
-                ++ep->report_dumped;
-        }
     }
 }
 
@@ -857,6 +839,18 @@ static int probe(int verbose)
     return 0;
 }
 
+/* Compact health only: keep raw touch reports and periodic USB logs quiet. */
+static void touch_health_report(const char *reason)
+{
+    unsigned ready = 0;
+    for (unsigned i = 0; i < hid_endpoint_count; ++i)
+        if (hid_endpoints[i].ready) ++ready;
+    al_printf("USB: %s rc=%d stage=%u rev=%02x bus=%02x enum=%u hid=%u\r\n",
+              reason, diag_result, (unsigned)g_usb_debug_stage,
+              (unsigned)g_usb_revision, (unsigned)host_bus_state,
+              (unsigned)host_descriptor_done, ready);
+}
+
 int max3421e_diag_init(uint32_t ui_base)
 {
     apb_base = ui_base;
@@ -867,10 +861,12 @@ int max3421e_diag_init(uint32_t ui_base)
     host_bus_state = 0xffu;
     host_last_hirq = 0;
     host_descriptor_done = 0;
+    hid_endpoint_count = 0;
     touch_pending = 0u;
     touch_decoder.down = 0u;
     if (!extension_present) {
         diag_result = -2;
+        touch_health_report("INIT");
         diag_printf("MAX3421E: FPGA USB extension missing; load the new bit first\r\n");
         return diag_result;
     }
@@ -883,6 +879,7 @@ int max3421e_diag_init(uint32_t ui_base)
                   (unsigned)board_read(USB_CTRL),
                   (unsigned)board_read(USB_STATUS));
     }
+    touch_health_report("INIT");
     return diag_result;
 }
 
@@ -913,7 +910,6 @@ void max3421e_diag_report(void)
             if ((irq & CONDETIRQ) != 0u) {
                 /* HIRQ bits are write-one-to-clear.  Re-sample the bus after
                  * a connection transition and leave the detector enabled. */
-                uint8_t old_bus_state = host_bus_state;
                 (void)reg_write(REG_HIRQ, CONDETIRQ);
                 if (!reg_write(REG_HCTL, SAMPLEBUS) &&
                     !reg_read(REG_HCTL, &hctl) && !(hctl & SAMPLEBUS) &&
@@ -925,8 +921,12 @@ void max3421e_diag_report(void)
                     touch_decoder.down = 0;
                     touch_event.type = TOUCH_CANCEL;
                     touch_pending = 1;
-                    if (host_bus_state != 0u && host_bus_state != old_bus_state)
+                    /* A detach/reattach can leave the same J/K sample.
+                     * We invalidated the descriptors above: always restart
+                     * enumeration when a device is still attached. */
+                    if (host_bus_state != 0u)
                         (void)host_bus_reset_and_probe();
+                    touch_health_report("CONNECT");
                 }
             }
         }

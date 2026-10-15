@@ -19,7 +19,7 @@
                 <ipxact:configurableElementValue referenceId="GPIO5_Available">1</ipxact:configurableElementValue>
                 <ipxact:configurableElementValue referenceId="GPIO6_Available">1</ipxact:configurableElementValue>
                 <ipxact:configurableElementValue referenceId="GPIO7_Available">1</ipxact:configurableElementValue>
-                <ipxact:configurableElementValue referenceId="UART0_Available">0</ipxact:configurableElementValue>
+                <ipxact:configurableElementValue referenceId="UART0_Available">1</ipxact:configurableElementValue>
                 <ipxact:configurableElementValue referenceId="UART1_Available">1</ipxact:configurableElementValue>
                 <ipxact:configurableElementValue referenceId="I2C_Available">1</ipxact:configurableElementValue>
                 <ipxact:configurableElementValue referenceId="QSPI_Available">1</ipxact:configurableElementValue>
@@ -33,6 +33,7 @@
                 <ipxact:configurableElementValue referenceId="AHB_Div">2</ipxact:configurableElementValue>
                 <ipxact:configurableElementValue referenceId="QSPI0_Div">6</ipxact:configurableElementValue>
                 <ipxact:configurableElementValue referenceId="QSPI1_Div">6</ipxact:configurableElementValue>
+                <ipxact:configurableElementValue referenceId="UART0_Baud_Rate">115200</ipxact:configurableElementValue>
                 <ipxact:configurableElementValue referenceId="UART1_Baud_Rate">115200</ipxact:configurableElementValue>
                 <ipxact:configurableElementValue referenceId="MCU_DPLL_POST_DIV">4</ipxact:configurableElementValue>
                 <ipxact:configurableElementValue referenceId="ERROR_FLAG">0</ipxact:configurableElementValue>
@@ -242,6 +243,20 @@
             <ipxact:portReferences>
                 <ipxact:internalPortReference componentRef="MCU_521bd43d073e_Inst" portRef="gpio7_dir"/>
                 <ipxact:externalPortReference portRef="gpio7_dir"/>
+            </ipxact:portReferences>
+        </ipxact:adHocConnection>
+        <ipxact:adHocConnection>
+            <ipxact:name>uart0_tx</ipxact:name>
+            <ipxact:portReferences>
+                <ipxact:internalPortReference componentRef="MCU_521bd43d073e_Inst" portRef="uart0_tx"/>
+                <ipxact:externalPortReference portRef="uart0_tx"/>
+            </ipxact:portReferences>
+        </ipxact:adHocConnection>
+        <ipxact:adHocConnection>
+            <ipxact:name>uart0_rx</ipxact:name>
+            <ipxact:portReferences>
+                <ipxact:internalPortReference componentRef="MCU_521bd43d073e_Inst" portRef="uart0_rx"/>
+                <ipxact:externalPortReference portRef="uart0_rx"/>
             </ipxact:portReferences>
         </ipxact:adHocConnection>
         <ipxact:adHocConnection>

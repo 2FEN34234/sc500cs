@@ -197,6 +197,8 @@ PROVIDE( __tls_end = . );
 PROVIDE( _end = . );
 PROVIDE( end = . );
 
+.wifi_boot (NOLOAD) : ALIGN(4) { KEEP(*(.wifi_noinit)) } >TCM AT>TCM
+
 /* Nuclei C Runtime Library requirements:
 * 1. heap need to be align at 16 bytes
 * 2. __heap_start and __heap_end symbol need to be defined

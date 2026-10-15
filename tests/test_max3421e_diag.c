@@ -13,6 +13,9 @@ static unsigned direction, selected, byte_count, command, rx_pending, rx_done, t
 static unsigned calls, init_count, reset_pulses;
 static unsigned cs_id, cs_default, clock_div;
 static int fault;
+#ifdef MAX_RECONNECT_MODEL
+static unsigned usb_bus_resets;
+#endif
 enum { NORMAL, ABSENT, BAD_WRITE, NO_OSC, BAD_INT, SPI_STUCK, BAD_BOARD_CTRL };
 
 void AlSys_MDelay(uint64_t ms)
@@ -67,6 +70,19 @@ void AlQspi_ll_SendData(uint32_t base, uint32_t value)
     if (!byte_count++) { assert(direction == AL_QSPI_TX); command = value; return; }
     if (command & 2) {
         assert(direction == AL_QSPI_TX);
+#ifdef MAX_RECONNECT_MODEL
+        /* Connection-event model: HIRQ is W1C; SAMPLEBUS completes; reset
+         * raises BUSEVENTIRQ. Descriptor/frame traffic is intentionally absent. */
+        if (fault == NORMAL && (command >> 3) == 25) {
+            regs[25] &= (uint8_t)~value;
+            return;
+        }
+        if (fault == NORMAL && (command >> 3) == 29) {
+            regs[29] = (uint8_t)value & (uint8_t)~0x04u;
+            if (value & 1u) { ++usb_bus_resets; regs[25] |= 1u; }
+            return;
+        }
+#endif
         if (fault != BAD_WRITE && fault != ABSENT) regs[command >> 3] = value;
         if ((command >> 3) == 15) regs[13] = (value & 0x20) || fault == NO_OSC ? 0 : 1;
     } else {

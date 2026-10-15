@@ -10,6 +10,9 @@
 ifneq ($(MAKELEVEL),0)
 
 LIBNAME = albsp
+ifeq ($(AL_SIMP_NO_FLOAT),1)
+AL_CFLAGS += -DAL_SIMP_NO_FLOAT
+endif
 #########################################################################
 # arch sources & inc
 #########################################################################

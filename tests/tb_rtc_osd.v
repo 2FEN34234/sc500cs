@@ -7,7 +7,7 @@ module tb_rtc_osd;
     reg valid=1, error=0, osf=0;
     wire ovs, ohs, ode;
     wire [23:0] pixel;
-    ui_osd dut(
+    ui_osd #(.MENU_CHINESE(0)) dut(
         .I_clk(clk), .I_rst_n(rst_n), .I_vsync(vs), .I_hsync(1'b0),
         .I_de(de), .I_data(24'h526879), .I_menu_enable(1'b0),
         .I_edit_enable(1'b0), .I_info_enable(1'b0), .I_menu_index(3'd0),
@@ -55,25 +55,25 @@ module tb_rtc_osd;
             for(py=0;py<62;py=py+1) begin
                 de=1;
                 for(px=0;px<1920;px=px+1) begin
-                    if(change_mid_frame && py==24 && px==1659) begin
+                    if(change_mid_frame && py==24 && px==845) begin
                         hours=8'h23; minutes=8'h59; seconds=8'h59;
                     end
                     tick();
-                    if(px<1632 || px>=1916 || py<16 || py>=60) begin
+                    if((px<818 || px>=1102 || py<16 || py>=60) && !(px>=1440 && px<1904 && py>=16 && py<96)) begin
                         if(pixel!==24'h526879) $fatal(1,"Passthrough at %d,%d",px,py);
                     end
-                    if(px==1632 && py==16 &&
+                    if(px==818 && py==16 &&
                        pixel!==(healthy ? 24'h309060 : 24'h904030))
                         $fatal(1,"Clock health border");
-                    if(px>=1640 && px<1896 && py==24) begin
-                        cell_no=(px-1640)/32; col=((px-1640)%32)/4;
+                    if(px>=826 && px<1082 && py==24) begin
+                        cell_no=(px-826)/32; col=((px-826)%32)/4;
                         c=expected[63-cell_no*8 -: 8]; bits=first_row(c);
                         expected_pixel=(col<5 && (bits & (5'b10000>>col))) ?
                             (healthy ? 24'hffffff : 24'hffb080) : 24'h101820;
                         if(pixel!==expected_pixel)
                             $fatal(1,"Clock digit %d x=%d char=%h pixel=%h expected=%h",cell_no,px,c,pixel,expected_pixel);
                     end
-                    if(!healthy && py==36 && px>=1640 && px<1660 && pixel!==24'hffb080)
+                    if(!healthy && py==36 && px>=826 && px<846 && pixel!==24'hffb080)
                         $fatal(1,"Missing invalid-time dash");
                 end
                 de=0; tick(); tick();
@@ -93,7 +93,7 @@ module tb_rtc_osd;
         osf=1; frame("--:--:--",0,0); osf=0;
         minutes=8'h6a; frame("--:--:--",0,0);
         minutes=0; hours=8'h40; frame("--:--:--",0,0); // invalid 12h value
-        $display("PASS: upper-right HH:MM:SS, 12h normalization, frame freeze, error/OSF/invalid BCD, video passthrough");
+        $display("PASS: top-center HH:MM:SS, 12h normalization, frame freeze, error/OSF/invalid BCD, video passthrough");
         $finish;
     end
     initial begin #20000000; $fatal(1,"Timeout"); end

@@ -1,0 +1,72 @@
+MCU picture controls (PIC1), 2026-10-13
+
+Deploy BOTH the picture FPGA bitstream and one matching MCU firmware:
+  FPGA: build/picture_control_20261013/camera_to_dsi_display_picture.bit
+  RAM debug: FDwork/anlu_app/build/anlu_app.elf
+  Flash:     FDwork/anlu_app2/build/anlu_app2.elf
+Do not change launch configurations or flash offsets for this feature.
+
+Main menu: select PICTURE (former inert PAN row), press OK or tap the row.
+Picture page:
+  Physical keys: UP/DOWN select; OK edit; UP increases, DOWN decreases.
+  BACK exits editing, then BACK returns to the main menu.
+  Touch label/left side to decrease; value/right side to increase.
+  Touch header/BACK to return. DEFAULT restores picture parameters only.
+  Exposure, sensor gain, servos, logo and display mode are not reset by DEFAULT.
+  Physical keys and touch edit the same MenuState in both firmware targets.
+
+BLACK: 0..63, saturating subtraction in 8-bit RGB, MCU default 12.
+GAMMA: OFF/ON, existing gamma LUT, MCU default OFF. Sobel edge display
+     (MODE 1/2, EFFECT 5) forces ON; leaving it restores the user's setting.
+     The OSD shows the effective value, so Gamma remains ON during Sobel.
+BRIGHT: 1.0/1.125/1.25/1.5, default 1.125; displayed as 1.12.
+SAT: 1.0/1.25/1.5/1.75/2.0, default 1.0.
+AWB: AUTO (unsmoothed), SMTH (IIR + clamp), GRAY (near-gray 32 + SMTH),
+     OFF (unity R/B gain). Default SMTH. Black subtraction is independent.
+DENOISE: OFF/LOW/MID/HIGH, default OFF. Edge-limited spatial filtering of
+     actual display pixels after linear scaling and before gamma; not temporal
+     frame averaging. First line bypasses vertical filtering; strong edges
+     bypass filtering. The existing recognition-side denoiser is retained.
+
+Register map, base 0x70000000:
+  0x08 bit3: picture page (bits0..2 remain menu/edit/info)
+  0x70 bits5:0 black, bit6 gamma, bits8:7 brightness 0..3,
+       bits11:9 saturation 0..4, bits13:12 AWB 0..3,
+       bits15:14 denoise 0..3. Existing FPGA reset 0x1050; MCU startup and
+       DEFAULT explicitly write 0x108c (BLACK=12, gamma OFF, brightness 1.125x).
+       Requires both low byte strobes; invalid saturation clamps to 4.
+  0x74 read-only 0x50494331 (PIC1).
+MCU checks PIC1 before exposing the submenu or writing the new register.
+The requested word crosses each clock domain through an acknowledged mailbox;
+the ISP applies it only on frame start. OSD values may lag the edit briefly.
+Settings are volatile: boot/default restores the profile above. No Flash
+settings persistence or RTC calibration is added by this change.
+The BLACK=12/gamma-OFF/Sobel-override update requires only new MCU firmware
+when the PIC1 FPGA bitstream is already installed. No new FPGA build needed.
+
+Build verification, 2026-10-13:
+  Both MCU targets compiled; menu, mailbox, denoise, picture algorithms,
+  picture/legacy/RTC OSD, APB/USB registers, RTC I2C and VCM I2C tests passed.
+  Routed resource use: 18,777 / 21,216 slices (88.50%), 60 / 108 ERAM.
+  Final timing: setup WNS +0.102 ns, hold WNS +0.020 ns; both TNS zero.
+  Only the CSI-to-APB mailbox ack input is excepted in the new SDC rule;
+  the synchronizer's ack1-to-ack2 path remains timed.
+  These results are compile/simulation/STA checks; board validation is pending.
+
+Validation entry points:
+  tests/test_picture_menu.c
+  tests/tb_picture_control.v (mailbox + denoise)
+  tests/tb_picture_algorithms.v (saturation/gamma/brightness)
+  tests/tb_picture_osd.v (new page), tests/tb_ui_osd.v, tests/tb_rtc_osd.v
+  tests/tb_max3421e_apb.v (picture register + existing USB/APB regression)
+  tests/build_picture_control.tcl (isolated full TD build)
+
+Board acceptance:
+  1. Verify main-menu PICTURE opens; touch header returns, outside drag still
+     moves servos, touch center still triggers AF.
+  2. Set fixed exposure/gain and scene. Toggle gamma, brightness, saturation
+     independently; inspect dark noise and highlight detail.
+  3. Compare DENOISE OFF/LOW/MID/HIGH on a stationary textured scene.
+  4. Check all edges, colors and line boundaries; watch for artifacts while
+     changing settings. Verify clock/menu/USB/VCM continue operating.
+  5. DEFAULT restores the six picture values without changing exposure/gain.

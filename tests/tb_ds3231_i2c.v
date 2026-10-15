@@ -10,6 +10,8 @@ module rtc_test_slave(inout wire scl, sda);
     reg [7:0] observed[0:4095];
     reg [7:0] regs[0:15];
     reg rollover=0;
+    reg ignore_write=0, ignore_status_clear=0;
+    integer writes=0, status_writes=0;
     reg stretch_enable=0, stretched=0;
     assign scl=(stretch_low || stuck_scl) ? 1'b0 : 1'bz;
     assign sda=(drive_low || stuck_sda) ? 1'b0 : 1'bz;
@@ -37,6 +39,14 @@ module rtc_test_slave(inout wire scl, sda);
             end
         end else begin
             bits=0; total_bytes=total_bytes+1;
+            if(byte_in_segment==2 && total_bytes!=nack_at && !ignore_write) begin
+                writes=writes+1;
+                if(pointer==15) begin
+                    status_writes=status_writes+1;
+                    if(!ignore_status_clear)
+                        regs[15]={regs[15][7]&shift[7],3'b000,shift[3],regs[15][2],regs[15][1:0]&shift[1:0]};
+                end else regs[pointer]=shift;
+            end
             if(byte_in_segment==0 && shift==8'hd1 && total_bytes!=nack_at) begin
                 reading=1; read_segments=read_segments+1;
                 if(pointer>15) $fatal(1,"Invalid RTC register %h",pointer);
@@ -70,6 +80,7 @@ module tb_ds3231_i2c;
     wire [31:0] count;
     ds3231_i2c_ctrl #(.CLK_DIV(49),.POLL_CYCLES(1000),.GAP_CYCLES(10)) dut(
         .I_clk(clk),.I_rst_n(rst_n),.IO_scl(scl),.IO_sda(sda),
+        .I_set(1'b0),.I_set_time0(32'd0),.I_set_time1(32'd0),
         .O_seconds(sec),.O_minutes(min),.O_hours(hr),.O_day(day),
         .O_date(date),.O_month(month),.O_year(year),.O_busy(busy),
         .O_valid(valid),.O_error(error),.O_fault(fault),.O_osf(osf),.O_read_count(count));

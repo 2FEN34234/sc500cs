@@ -31,6 +31,8 @@
 `define SCALE_CROP_Y       ((`SCALE_HEIGHT - `PIPE_HEIGHT) / 2)
 
 // 1920x1080@30 HDMI 标准时序。
+// PLL CLKC4 currently generates 75 MHz (30.303 Hz with the totals below).
+`define HDMI_PIXEL_CLOCK_HZ 75000000
 // 水平方向：有效区、总周期、同步起始位置、同步结束位置。
 `define HDMI_H_ACTIVE      1920
 `define HDMI_H_TOTAL       2200

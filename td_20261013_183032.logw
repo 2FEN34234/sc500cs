@@ -1,0 +1,13 @@
+============================================================
+   Tang Dynasty, V6.2.168116
+   Copyright (c) 2012-2025 Anlogic Inc.
+   Executable = F:/AnlogicFpga/TD_6.2.1_Engineer_6.2.168.116/bin/td_commands_prompt.exe
+   Built at =   16:32:07 Jun 12 2025
+   Run by =     pc
+   Run Date =   Tue Oct 13 18:30:32 2026
+
+   Run on =     CIRBUG
+============================================================
+USR-8130 CRITICAL-WARNING: No clock match the pattern: MIPI_RX_BYTE_CLK.
+USR-8012 CRITICAL-WARNING: value for option -from is invalid.
+USR-8159 CRITICAL-WARNING: Command set_false_path -from [get_clocks {MIPI_RX_BYTE_CLK}] -through [get_nets {u_picture_isp/ack}] -to [get_clocks {u_PLL/ph1p_phy_pll_wrapper_25a56e5ce2f9_Inst/u_PH1P_PHY_PLL.clkc[2]}] in D:/2026fpga/lab_hd_1_mipi_hdmi/build/picture_ack.sdc(1) fails.

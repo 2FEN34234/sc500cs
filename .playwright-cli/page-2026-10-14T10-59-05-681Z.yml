@@ -1,0 +1,87 @@
+- generic [ref=e1]:
+  - banner [ref=e2]:
+    - link "◉ 镜头" [ref=e3] [cursor=pointer]:
+      - /url: /
+      - text: ◉
+      - generic [ref=e4]: 镜头
+    - generic [ref=e5]: Wi-Fi 设备在线
+  - main [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - paragraph [ref=e9]: CAMERA / CONTROL
+        - heading "留住每一刻。" [level=1] [ref=e10]
+        - paragraph [ref=e11]: 查看设备拍摄的照片，或开始一次新的记录。
+      - button "刷新状态 ↻" [active] [ref=e12] [cursor=pointer]
+    - generic [ref=e13]:
+      - article [ref=e14]:
+        - generic [ref=e15]:
+          - heading "最新照片" [level=2] [ref=e16]
+          - generic [ref=e17]: 拍摄时间未校准
+        - img "最新拍摄照片" [ref=e75]
+        - generic [ref=e23]:
+          - generic [ref=e24]: TEST_FIXTURE.BMP · 1.6 KB
+          - link "下载原图 ↓" [ref=e76] [cursor=pointer]:
+            - /url: /api/ui/photos/34c7c16dcb1f40f8b565d811d5b18ff0/file?attachment=true
+      - complementary [ref=e25]:
+        - generic [ref=e26]:
+          - heading "设备控制" [level=2] [ref=e27]
+          - generic [ref=e28]: MCU 已连接
+        - paragraph [ref=e29]: 固件 UI-TEST-FIXTURE · Wi-Fi -53 dBm
+        - generic [ref=e30]:
+          - generic [ref=e31]:
+            - generic [ref=e32]: 最后联系
+            - strong [ref=e33]: 18:58:37
+          - generic [ref=e34]:
+            - generic [ref=e35]: SD 卡
+            - strong [ref=e36]: 可用
+          - generic [ref=e37]:
+            - generic [ref=e38]: 录制状态
+            - strong [ref=e39]: 未录制
+          - generic [ref=e40]:
+            - generic [ref=e41]: 设备时间
+            - strong [ref=e42]: 已校准
+        - button "拍摄一张照片" [ref=e43] [cursor=pointer]
+        - generic [ref=e45]: 延时摄影间隔
+        - generic [ref=e46]:
+          - combobox "延时摄影间隔" [ref=e47]:
+            - option "2 秒" [selected]
+            - option "5 秒"
+            - option "10 秒"
+            - option "30 秒"
+            - option "60 秒"
+          - button "开始" [ref=e48] [cursor=pointer]
+          - button "停止" [ref=e49] [cursor=pointer]
+        - paragraph [ref=e50]: 实际间隔受拍照和存储耗时影响。
+        - generic [ref=e52]:
+          - generic [ref=e53]:
+            - generic [ref=e54]:
+              - text: 曝光
+              - spinbutton "曝光" [ref=e55]: "5990"
+            - generic [ref=e56]:
+              - text: 增益
+              - spinbutton "增益" [ref=e57]: "80"
+          - button "应用参数" [ref=e58] [cursor=pointer]
+        - paragraph [ref=e59]: 设备上报：曝光 5990 / 增益 80
+    - generic [ref=e60]:
+      - generic [ref=e61]:
+        - generic [ref=e62]:
+          - paragraph [ref=e63]: YOUR MOMENTS
+          - heading "历史相册" [level=2] [ref=e64]
+        - generic [ref=e65]: 存储 0.0 / 2048 MB
+      - link [ref=e96] [cursor=pointer]:
+        - /url: /api/ui/photos/34c7c16dcb1f40f8b565d811d5b18ff0/file?attachment=true
+        - img "TEST_FIXTURE.BMP" [ref=e97]
+        - generic [ref=e98]:
+          - strong [ref=e99]: TEST_FIXTURE.BMP
+          - text: 拍摄时间未校准
+    - generic [ref=e67]:
+      - generic [ref=e68]:
+        - heading "操作记录" [level=2] [ref=e69]
+        - generic [ref=e70]: 以设备回报结果为准
+      - generic [ref=e100]:
+        - generic [ref=e101]: 拍摄照片
+        - generic [ref=e102]: 执行成功
+        - generic [ref=e103]: 2026/10/14 18:57:35 · UI_TEST_ONLY
+  - contentinfo [ref=e73]:
+    - text: 镜头 · 私有设备相册
+    - generic [ref=e74]: 照片下载完成前请保留 SD 卡原文件

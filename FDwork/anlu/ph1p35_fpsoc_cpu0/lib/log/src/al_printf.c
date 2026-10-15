@@ -175,9 +175,12 @@ AL_VOID OutNumLong(const AL_S64 N, const AL_S32 Base, ParamStruct *Param)
 
     i = 0;
     do {
-        OutBuf[i] = Digits[Num % Base];
+        /* RV32 has no 64-bit divide/remainder instruction. A stored quotient
+         * lets the formatter share division without linking __umoddi3 too. */
+        volatile AL_U64 quotient = Num / (AL_U32)Base;
+        OutBuf[i] = Digits[Num - quotient * (AL_U32)Base];
         i++;
-        Num /= Base;
+        Num = quotient;
     } while (Num > 0);
 
     if (Negative != 0) {

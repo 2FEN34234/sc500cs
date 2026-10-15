@@ -24,6 +24,11 @@ set_pin_assignment { O_servo_pan }  { LOCATION = V6; IOSTANDARD = LVCMOS33; DRIV
 set_pin_assignment { O_servo_tilt } { LOCATION = V4; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLDOWN; }
 
 # Board USB-UART bridge.
+# ATK-ESP-01, independent USART0. Module and FPGA share GND; 3.3V logic.
+set_pin_assignment { I_wifi_uart_rx } { LOCATION = E12; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
+set_pin_assignment { O_wifi_uart_tx } { LOCATION = E16; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 4; PULLTYPE = PULLUP; }
+set_pin_assignment { IO_wifi_reset_n } { LOCATION = F13; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 4; PULLTYPE = PULLUP; }
+set_pin_assignment { IO_wifi_gpio0 } { LOCATION = E17; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 4; PULLTYPE = PULLUP; }
 set_pin_assignment	{ I_mcu_uart_rx }		{ LOCATION = J1; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
 set_pin_assignment	{ O_mcu_uart_tx }		{ LOCATION = H1; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = PULLUP; }
 
@@ -44,3 +49,9 @@ set_pin_assignment	{ O_tmds_ch2_p }		{ LOCATION = H14; IOSTANDARD = TMDS33; PULL
 set_pin_assignment	{ O_tmds_clk_p }		{ LOCATION = C17; IOSTANDARD = TMDS33; PULLTYPE = NONE; }
 
 
+
+# Onboard TF socket, dedicated SPI mode. DAT1/DAT2 are unused inputs.
+set_pin_assignment { O_sd_clk }  { LOCATION = A7; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 4; PULLTYPE = PULLDOWN; }
+set_pin_assignment { O_sd_mosi } { LOCATION = A8; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 4; PULLTYPE = PULLUP; }
+set_pin_assignment { I_sd_miso } { LOCATION = E8; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
+set_pin_assignment { O_sd_cs }   { LOCATION = B12; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 4; PULLTYPE = PULLUP; }

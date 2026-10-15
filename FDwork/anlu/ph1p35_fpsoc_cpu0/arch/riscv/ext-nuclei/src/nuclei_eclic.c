@@ -24,6 +24,10 @@
 #include "al_rv_sysregs.h"
 #include "nuclei_eclic.h"
 #include "al_backtrace.h"
+#if defined(AL_CAMERA_COMPACT_DIAG) && __riscv_xlen == 32
+#include "al_simp_printf.h"
+#define printf al_simp_printf
+#endif
 
 /* =========================================================================================================================== */
 /* ================                                  Exception Code Definition                                ================ */

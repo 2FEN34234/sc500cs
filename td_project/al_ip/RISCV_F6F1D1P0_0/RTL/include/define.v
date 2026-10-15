@@ -7,6 +7,7 @@
 `define GPIO5_Available_521bd43d073e
 `define GPIO6_Available_521bd43d073e
 `define GPIO7_Available_521bd43d073e
+`define UART0_Available_521bd43d073e
 `define UART1_Available_521bd43d073e
 `define I2C_Available_521bd43d073e
 `define QSPI_Available_521bd43d073e

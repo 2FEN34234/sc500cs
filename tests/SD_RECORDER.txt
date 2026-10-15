@@ -1,0 +1,265 @@
+板载 TF 卡延时摄影（REC1）
+=========================
+
+功能与操作
+----------
+将 FAT32 格式的 TF 卡插入板载卡槽。推荐先用现有的 4~32 GB SDHC 卡测试。
+程序不会格式化卡，也不会覆盖已有文件；不支持 exFAT。
+屏幕菜单的原“俯仰角”状态行改为“录制设置”，舵机仍可在菜单外拖动控制。
+进入后：单张拍照、开始录制、停止录制、保存间隔、已保存、状态、返回。
+间隔依次为 2、5、10、30、60 秒，触摸间隔左侧减少、右侧增加；按键 OK 切换。
+开始/停止/拍照均可用触屏或四个物理键选择。中心自动对焦入口保留。
+菜单旁小方块：暗绿色=空闲，红色=定时录制，橙色=单张写入；错误也显示红色，
+详细状态请看录制页“状态”和串口 SD: ERROR 信息。
+
+输出 640x360、24-bit RGB 彩色 BMP，文件为 T0000001.BMP、T0000002.BMP……。
+每张 691254 字节，默认每两秒抓取一次；如果写入更慢则保存完成后再抓下一张，
+不排队补帧。每两秒一张时约 1.24 GB/小时（十进制）。这是图片序列，不是 AVI/MP4。
+图像来源为当前显示特效之后、标志和菜单叠加之前，采用每三行/列取一个像素。
+因此保留颜色调整与灰度/反色/Sobel 等效果，但不录入菜单、时钟和识别框叠加。
+它是最近邻抽样，细线可能有混叠；第一版没有加入会占更多资源的缩小滤波器。
+显示端仍保持 1920x1080@30，不随录制分辨率降低。
+RTC 日期有效、没有 OSF/总线错误时写入文件时间，否则使用 1980-01-01。
+停止会完成当前照片并关闭文件。请等状态回到空闲再拔卡。
+突然断电/拔卡可能留下不完整 BMP 或损坏正在更新的 FAT，尚无掉电事务保证。
+SD/文件错误会停止定时录制；重新插好卡后再次点“单张拍照/开始录制”可重新初始化。
+DDR 读取超时属于图像存储通路故障，需重启并排查 DDR，不能靠重新插卡解决。
+用户上板已确认 SD 初始化、FAT32 挂载通过；完整 BMP 保存、实际写速与持续录制仍待验收。
+
+下载与兼容
+----------
+FPGA: build/sd_recorder_startup_20261013/camera_to_dsi_display_sd.bit
+RAM 调试: FDwork/anlu_app/build/anlu_app.elf
+Flash: FDwork/anlu_app2/build/anlu_app2.elf
+必须更新 FPGA 和对应 MCU 固件。原启动方式、链接地址、Flash 偏移及调试配置不变。
+新 MCU 固件会检查 REC1 和0x1C处修订号00010003；遇到旧 FPGA 时禁用录制入口。
+为容纳 FatFs，两个应用明确关闭 SDK 独立日志格式器的浮点格式化，保留整数日志。
+仅这两个应用导出 AL_SIMP_NO_FLOAT=1；其他工程不定义此选项时保持 SDK 原行为。
+PFLOAT=0 本来只控制 newlib，不会关闭 SDK 的 al_simp_printf 浮点实现。
+栈由 1 KB 增加为 2 KB；最终 RAM 链接必须检查 heap end 不与栈相交。
+SPI/touch 和原主程序仍使用原 O2；新录制/FatFs 文件使用 Os。
+
+硬件与数据通路
+--------------
+SPI mode 0，SD_CLK=A7、CMD/MOSI=A8、DAT0/MISO=E8、DAT3/CS=B12。
+DAT1=D8、DAT2=A12 不作为输出驱动，未占用。SD 逻辑电平 3.3 V。
+50 MHz APB 下初始化时钟 200 kHz，正常读写时钟 6.25 MHz。
+初始化 CMD0/CMD8/ACMD41/CMD58，标准容量卡另发 CMD16；支持 SDSC 字节地址与 SDHC 块地址。
+数据读写检查/生成 CRC16，写响应和忙等待有超时；多扇区写使用 CMD25。
+文件系统来自官方 FatFs R0.15，禁用格式化、长文件名、exFAT，使用共享扇区缓冲。
+来源：https://elm-chan.org/fsw/ff/arc/ff15.zip
+接口参考：https://elm-chan.org/docs/mmc/mmc_e.html
+许可完整保留在 FDwork/shared/fatfs/ff.c 和 ff.h 文件头。
+
+S_edge RGB -> 3x 抽样 -> 四像素/128-bit 打包 -> 异步 FIFO -> DDR 独立快照。
+DDR 用户地址单位为 2 字节，录制基址为 8000000（物理字节偏移 16000000）。
+当前视频两帧区各占 6220800 字节，第二帧基址 6400000，不与录制区重叠。
+每像素缓存 00RRGGBB，录制缓存 921600 字节；BMP 输出时去掉填充字节。
+录制 DDR 写入只等待视频突发结束，不等视频读返回；MCU读快照前等待旧视频读返回。
+MCU快照读命令发出后允许视频继续提交命令，首个返回归录制，其余归视频。
+DDR桥按队首命令选择读/写ready；写入需要地址和数据两个通道同时就绪。
+录制缓存直到下一次抓取请求才改变。FIFO 溢出或不完整帧使本次抓取失败。
+MCU 每轮最多读取 128 个 DDR 字（512 像素），分块写文件，不申请整帧 MCU 内存。
+SD 忙等待/扇区边界穿插 USB 触屏与按键处理，FatFs 不重入。
+
+REC1 APB 基址 0x70001000
+-----------------------
+00: 0x52454331 能力标识。
+04: 写 bit0 请求下一个完整视频帧；读 bit0=busy bit1=ready bit2=frame error。
+08: 清除完成/busy，跨时钟域取消抓取并清空待写FIFO；已发出的DDR读仍接收其返回。
+0c: 快照 128-bit 字数 57600。
+10: 像素采集计数（诊断用，跨域采样，出错后参考）。
+14: DDR诊断，28:19=未返回视频读数，18:16=录制状态机，15:0=已写快照字数。
+18: 抓帧错误原因，1=FIFO满，2=视频帧提前结束。
+1c: 0x00010003，DDR 命令 FIFO 复位释放握手修订号。
+20: 写快照字索引 0..57599，发起异步 DDR 读。
+24: bit0=读请求忙；忙消失后读取 30/34/38/3c 的四个像素。
+40: SPI 半周期分频值，周期为 2*(DIV+1) 个 APB 时钟。
+44: SPI CS 电平；48: 写一个发送字节；4c: bit0=busy, bits15:8=接收字节。
+60: MCU 状态 -> OSD：31:16 保存数 BCD（显示末四位），14:12 间隔索引，
+    10=录制菜单页，9=有保存任务，8=定时录制，7:0=错误码。
+
+错误码（串口以十进制输出）
+------------------------
+0x10+FatFs返回值：挂载失败，例如 19=FR_NOT_READY，29=FR_NO_FILESYSTEM。
+0x21（33）：视频帧不完整或 FIFO 溢出。
+0x22（34）：等待抓取超时。
+0x23（35）：DDR 读取超时。
+0x30（48）：文件短写/卡空间不足；0x31（49）：七位文件序号耗尽。
+0x40+FatFs返回值：创建/写入/关闭失败，例如 65=FR_DISK_ERR。
+g_rec_state、g_rec_error、g_rec_saved 可在 FD 调试器查看。
+
+构建与验证
+----------
+FPGA: td_commands_prompt.exe tests/build_sd_recorder.tcl
+MCU: 分别运行 FDwork/anlu_app/build.ps1 和 FDwork/anlu_app2/build.ps1。
+RTL: tests/tb_sd_recorder.v 测 SPI 边沿、CS、快照跨域、像素顺序、缓存锁定、重新抓取及短帧拒绝。
+软件: tests/test_sd_recording.c 使用内存 SDHC 模型运行真实 SD 驱动和 FatFs；
+      验证所有 BMP 像素、CRC、多块写、已有文件保护、停止、卡满、写失败和无卡。
+      它只在主机内存/工作区输出模拟卡镜像，不会访问真实磁盘设备。
+菜单: tests/test_record_menu.c 和 tests/test_picture_menu.c。
+OSD: tests/tb_menu_chinese.v，含原菜单和录制页、数字、字体、视频同步逐像素检查。
+预览: build/sd_recorder_menu.png（仿真图，计数/状态为测试值）。
+
+上板验收顺序
+------------
+1. 插入 FAT32 TF 卡，下载新 bit 和相应 ELF，确认原显示/触屏仍正常。
+2. 录制设置 -> 单张拍照，等“已保存”增加和 SD: SAVED 日志。
+3. 空闲后取卡，电脑打开 Txxxxxxx.BMP，确认640x360、方向和颜色。
+4. 再连续拍摄三张，确认编号递增；随后测试 2/5 秒定时录制和停止。
+5. 长时间测试前先确认真实卡最慢写入时间、画面连续性及无 FIFO/DDR 超时。
+
+2026-10-13 构建验收记录（软件/仿真，非上板验收）
+------------------------------------------------
+TD 完成综合、布局、布线、最终 STA 和 bitgen。
+最终 Setup WNS=27 ps、Hold WNS=20 ps，Setup/Hold TNS=0，违规端点均为0。
+Slice=19211/21216（90.55%），LUT=18683/21216（88.06%），ERAM=69/108，DSP=14/40。
+时序报告：build/sd_recorder_20261013/final_timing.rpt。
+RAM ELF text/data/bss=37040/296/7876 字节；Flash ELF=33896/296/7876 字节。
+RAM 最小 heap end=0x0800A8D0，2 KB stack 起点=0x0800B800，二者未重叠。
+RTL 抓帧/SPI、FatFs 全文件像素校验、原图像菜单与录制菜单测试均通过。
+整屏 OSD 回归8个场景通过，检查625664个字体/菜单参考像素，并验证视频/同步对齐。
+生成的 BMP 已由独立 Pillow 解码器加载，尺寸640x360，像素顺序正确。
+仿真菜单预览：build/sd_recorder_menu.png（60秒/0123为测试值，默认仍为2秒）。
+
+SHA256（本次已构建文件）
+FPGA bit: CC1654B8D30EFF9EB893ACF33F198A402916338D09C20AF3B30E7737DC3F87F6
+RAM ELF: 6F7ACFDC9FC44645FE61B977E187743542FEDD719A05866F6A453C551CCF6BAE
+Flash ELF: 70FE1F42FAB5A19D77052B0691F3EA73C960D0748A374DB2AF9F5E7496A67E11
+
+串口测试固件更新（sd-test-v1）
+-----------------------------
+已删除两套 MCU 的 TOUCH_REPORT 原始报文输出，触屏采集/解析/菜单操作保留。
+USART1 115200 输出 SD: SERIAL 启动标识、SD: REQUEST、SD: SAVED、SD: ERROR。
+此更新只需下载对应 MCU ELF，FPGA bit 保持以上版本。
+状态“错误”仍需根据 SD: ERROR 数字定位，本更新没有宣称修复 SD 保存失败。
+最新 RAM ELF text/data/bss=36896/296/7868；Flash ELF=33752/296/7868 字节。
+以下 ELF SHA256 替代上面初版 ELF 哈希：
+RAM ELF: 3B0EA510D77568098746306CABADC332E61362AB784377DF5EB6D0A01992455F
+Flash ELF: 7F8E69BBF30C2DEBC3D95C2E10B4D6797E505A49A64490F0547503CB52A3BC14
+
+挂载 ERROR=17 的诊断更新（sd-test-v2）
+------------------------------------
+17=0x10+FR_DISK_ERR，表示挂载阶段底层读盘失败；不能据此判断文件系统格式。
+新增 INIT（卡初始化结果）、READ_FAIL（扇区读取）、MOUNT OK 日志。
+READ_FAIL 包含 lba、stage、r1、token、crc=计算值/收到值、spi_timeout、div。
+stage=1：CMD17响应失败；2：未得到0xFE数据令牌；3：CRC不符或SPI字节超时。
+当非SPI超时的读失败发生在快速时钟，取消片选后降到div=124重读同一扇区一次。
+低速仍失败则返回原读盘错误；不跳过CRC，不推进失败扇区的目标缓冲指针。
+低速成功后保持低速用于后续读写，因此保存耗时可能明显增加。
+这一措施用于区分速率相关问题，并未确认本次上板故障的具体根因。
+命令/令牌/CRC流程再次对照 https://elm-chan.org/docs/mmc/mmc_e.html 核对。
+新增测试注入快速CRC错误、持续CRC错误，验证降速、同扇区重试和失败上报；
+原FatFs/BMP完整内容、停止、卡满及拔卡模型测试均通过，两套MCU编译通过。
+FPGA bit不变，仅更新MCU。最新固件标识 SD: SERIAL=sd-test-v2。
+RAM ELF SHA256: FC1AEAE7B1E13FEC61B680E0D8AF2319280CB60BCF2480FB5A188FF9887C4632
+Flash ELF SHA256: 380525FC513EBC2F3C6E8717D63892105B928D837BDC207F9AEE75FF8A32AEA1
+
+固定 CRC=F787/0000 的诊断更新（sd-test-v3）
+-----------------------------------------
+上板v2日志：初始化通过，LBA0 CMD17响应00、数据令牌FE；
+div=3与div=124均为计算CRC=F787、收到CRC=0000，无SPI超时。
+尚不能断定是卡CRC行为、数据边界错位或其他收发问题，不能据此忽略CRC。
+v3在CMD8后、ACMD41前发CMD59(1)明确启用CRC；所有命令生成真实CRC7。
+若卡拒绝CMD59，初始化失败并输出最后cmd/r1，不静默降为无校验模式。
+CRC失败时打印 BLOCK head=前16字节、tail=最后16字节、after_crc=随后4字节。
+保持扇区CRC16和有限降速重试，不把损坏数据交给FatFs。
+参考NXP SDSPI CRC模式说明：
+https://mcuxpresso.nxp.com/api_doc/dev/4698/a00040.html
+主机回归通过：独立CRC7参考、CMD0/CMD8已知CRC、CRC16标准向量31C3、
+CRC错误注入与原完整BMP/FatFs流程。RAM与Flash固件编译通过，FPGA不变。
+最新RAM ELF SHA256: CCA354CD98FEAA4C37D243CD61AD293584B2179B7F5D49E116145E983B744276
+最新Flash ELF SHA256: 0F28F8BE6CE5BD02CE921C2C268872A6D55660E70CDF61836196D4B107DBEBA1
+
+抓帧错误及视频阻塞修复（sd-test-v4 + FPGA revision 00010002）
+----------------------------------------------------------
+上板v3已确认 SD: MOUNT OK div=3，原CRC挂载失败不再出现；
+当前故障是ERROR=33及连续重试后视频变黑，菜单仍显示。
+代码与仿真确认的缺陷：
+1. DDR桥把写地址ready当成读命令的接收条件，读通道不ready时会丢请求。
+2. 录制写入等待全部视频读返回，未返回请求可阻塞抓帧直至FIFO溢出。
+3. APB取消只清MCU可见状态，没有取消像素域/DDR域任务及释放仲裁。
+修复：
+- 队首命令独立于enable解码，读等arready，写等awready与wready。
+- 快照写入不等待视频读返回；MCU快照读仍保证返回归属。
+- 错误自动撤销抓帧、清FIFO和释放视频；软件取消跨域传播。
+- 已发出的快照读在取消后仍收取其返回，等待期间不阻塞新视频请求。
+- 视频未返回计数防下溢；同时到达的请求与帧边界不会丢掉新请求。
+- MCU错误路径先取消采集再关闭文件，错误33打印具体采集原因和计数。
+- MCU拒绝在旧版FPGA上启用录制，需要同时下载本次bit和ELF。
+验证：
+tests/tb_sd_ddr_handshake.v 使用真实DDR桥和板级wrapper：
+旧版在读通道暂停时复现 READ lost，新版通过独立读/写/数据背压测试。
+tests/tb_sd_recorder_recovery.v：
+旧版复现写0字且FIFO溢出；新版通过并行视频读、溢出释放、反复重拍及取消迟到读返回。
+tests/tb_sd_recorder_fullframe.v：
+1920x1080输入完整抓取57600个DDR字，并发7646组视频读突发、80周期返回延迟和ready停顿，通过。
+原RTL像素顺序/SPI、FatFs/BMP全部内容与错误注入回归通过。
+RAM ELF text/data/bss=38056/304/7876；Flash ELF=34784/304/7876。
+RAM heap最小末尾0800ACD0，stack起点0800B800，仍有2864字节间隔。
+RAM ELF SHA256: 59F688E9F2DFA48649E3F493FD3F179C355AB8C5A2DA7250C425322B2A2BF65B
+Flash ELF SHA256: 5D19AC6851FB938C390663CBFE9E5AAFA456730CC47DAA05DD50590F59EFC7BF
+最终上板成功仍需实际下载验证；仿真通过不代表真实板卡已经修好。
+本次FPGA构建已完成：Setup WNS=19 ps、Hold WNS=20 ps，TNS=0，违规端点均为0。
+Slice=19287/21216（90.91%），LUT=18737（88.32%），ERAM=69，DSP=14。
+报告：build/sd_recorder_recovery_20261013/final_timing.rpt。
+FPGA bit SHA256: C98F974C111D5ACA9A63894DA4EED3A9B9E3CA1EFA57D120268376313C0AEA4D
+验收：先重启恢复显示，下载本节新bit与v4 ELF，检查启动hw=0x00010002 capture=1。
+先点单张拍照；应看到SD: SAVED，屏幕视频继续正常。再做连续拍照/停止测试。
+此前失败创建的空BMP会保留，新照片跳过已有编号，不要用文件名编号判断本轮成功数。
+如果仍失败，保存SD: CAPTURE_FAIL与SD: ERROR行，停止反复拍照并报告显示状态。
+
+DDR 快照读取诊断（sd-test-v5，沿用 FPGA revision 00010002）
+--------------------------------------------------------
+用户 v4 实测：hw=00010002、MOUNT OK，随后 ERROR=35，三次 saved=0。
+35=0x23，是抓帧已报告就绪、写过 BMP 文件头后，MCU 等待快照读应答超时。
+现有日志不能区分：等待视频读排空、等 DDR 接收命令、等返回或跨时钟应答异常。
+此版不宣称修好了板上 DDR 故障，不修改 FPGA，不重新生成 bit。
+固件改动：
+- 启动标识 sd-test-v5；仍要求 hw=00010002。
+- CAPTURE_READY 打印已写 DDR 字数、DDR 状态、video_pending、抓帧时间。
+- DDR_READ_TIMEOUT 在取消前打印 word、ms、busy、cap、words、state、
+  video_pending、before/after 原始调试寄存器值。
+- DDR 等待改为 100ms 实际计时，保留异常计时器下的有限轮询保护；
+  异常等待中继续服务触摸/按键，避免原固定迭代次数依赖 MCU 执行速度。
+- 原错误路径取消采集、停止录制、保留未完成文件，不增加 saved。
+诊断解释（仍需结合实测）：
+state=0 且 video_pending 固定非零：等视频读返回排空；
+state=3：等共享 DDR 命令队列 ready；state=4：已提交快照读，等数据返回；
+state=0、pending=0、busy=1：需进一步查仲裁忙信号或跨域应答。
+主机测试通过：70ms 延迟应答、毫秒计数回绕、首字/第130字卡住、取消重拍，
+以及原完整 BMP 内容、CRC、FatFs、卡满和拔卡错误路径。
+tests/tb_sd_recorder_mailbox.v 通过：完整 1920x1080 抓帧后，在持续视频
+读写突发和背压下，经 APB 读取全部 57600 个快照字，核对返回归属和像素数据。
+这是有序、无丢失 DDR 返回模型，未复现板上 ERROR=35，不能据此排除硬件问题。
+RAM/Flash 两套 MCU 编译通过：text/data/bss 分别 38432/304/7876、35160/304/7876。
+RAM ELF SHA256: 85DFA019CE263AEB9C1A1214E940BF907E1E495CF4D9A6C09E2CE9A3F05AA89D
+Flash ELF SHA256: EBA5608A85202C319021FD16EFE91156ABC8DA6ADA6ABC07C90EFD919C40CC60
+下载对应 ELF 后先单拍一次，回传 CAPTURE_READY、DDR_READ_TIMEOUT、ERROR 三行。
+
+首个 DDR 视频读丢失修复（sd-test-v6 + FPGA revision 00010003）
+----------------------------------------------------------
+用户 v5 实测：CAPTURE_READY words=57600；DDR_READ_TIMEOUT word=0、state=0、
+video_pending=1，before/after 都为 0008E100。卡在快照读发出前的视频读排空。
+找到并复现的缺陷：命令 FIFO 实际 IP 内部 asy_rst0/asy_rst1 在外部复位
+释放后再保持两拍；DDR 桥原 ready=!afull 却立即为真。视频首个读请求因此
+被上游记账，FIFO 指针却仍在复位而不推进，永久剩余一个未返回请求。
+修复只增加与真实 FIFO 同步释放的两拍门控：复位未释放不报告 ready、不入队、
+不出队。没有清零或跳过 video_pending，也没有放弃读返回的归属保护。
+验证证据：
+- tests/tb_sd_ddr_startup.v 使用工程真实生成的 w155 FIFO，而非简化替身。
+  旧桥发送240次却只接受239次；新桥连续三次复位均接受240次且地址顺序正确。
+- tests/tb_sd_ddr_startup_capture.v 联合真实 FIFO、DDR 桥、录制模块和有序内存模型。
+  旧桥精确复现 word=0、busy=1、state=0、video_pending=1（小帧已写2字）。
+  新桥连续三次复位后抓帧、读取全部小帧字均成功，像素一致。
+- 原独立读/写通道背压、采集错误取消、SPI/抽样/像素顺序及 FatFs 软件回归通过。
+- v6 MCU 拒绝在旧 hw=00010002 上录制，防止只更新 MCU 后继续遇到旧故障。
+RAM/Flash ELF text/data/bss 仍为38432/304/7876、35160/304/7876。
+RAM ELF SHA256: EEAAF222F9BC62198D47177D824CFAD23EB2A8E90EBD9D8AD36930146641D53D
+Flash ELF SHA256: A563865740D761475CB0743A3135BC43B103C720039D20C889AABE8178A4BFCC
+本节为代码和仿真确认的修复；真实板卡完整保存仍需下载新 bit 与 v6 ELF 验收。
+FPGA 完整构建于 2026-10-13 22:35 完成，最终 SWNS=0.100ns、HWNS=0.020ns，
+STNS/HTNS=0，无时序违例。报告 build/sd_recorder_startup_20261013/final_timing.rpt。
+FPGA bit SHA256: 64DB3B9E164636197B5833FFBD5F03170AE42F930671997E763F0BDABB7E57E5
+验收启动行：SD: SERIAL=sd-test-v6 REC1=1 hw=0x00010003 capture=1 interval=2s。
+先单张拍照，确认出现 SD: SAVED；空闲后在电脑上打开 BMP 检查图像，再测试定时录制。

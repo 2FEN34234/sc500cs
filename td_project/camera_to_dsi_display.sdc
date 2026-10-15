@@ -10,6 +10,18 @@ rename_clock -name {HDMI_SERIAL_CLK} [get_clocks {u_PLL/ph1p_phy_pll_wrapper_25a
 
 rename_clock -name {MIPI_RX_BYTE_CLK} [get_clocks {u_mipi_dphy_rx_ph1p_mipiio_wrapper/u_ph1p_mipiio_rx_wrapper/u_PH1P_LOGIC_DPHY_MIPI_RX.o_fabric_div4_8_clk}]
 
+# Picture mailbox acknowledgement crosses from CSI to APB through ack1/ack2.
+# Only the asynchronous input net is excepted; ack1 -> ack2 remains timed.
+# The source holds the 16-bit bundle until this acknowledgement returns.
+set_false_path -through [get_nets {u_picture_isp/ack}] \
+    -to [get_clocks {u_PLL/ph1p_phy_pll_wrapper_25a56e5ce2f9_Inst/u_PH1P_PHY_PLL.clkc[2]}]
+
+# Same bundled-data handshake, forward direction. See picture_mailbox.sdc.
+set_max_delay -datapath_only 8.000 -through [get_nets {u_picture_isp/held*}] \
+    -to [get_clocks {MIPI_RX_BYTE_CLK}]
+set_false_path -hold -through [get_nets {u_picture_isp/held*}] \
+    -to [get_clocks {MIPI_RX_BYTE_CLK}]
+
 # The PH1P MCU timing model launches the external APB address/control pins on
 # core_clk.  APB holds them for one 50 MHz bus cycle, equal to six 300 MHz core
 # cycles, so constrain the external APB return path with the protocol latency.

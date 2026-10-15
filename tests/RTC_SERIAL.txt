@@ -1,0 +1,89 @@
+DS3231 电脑串口校时 rtc-set-v3
+================================
+当前连接：SDA=C18，SCL=D15，7位地址0x68。
+VCM保持另一组独立I2C引脚和原控制逻辑，不需要外接STM32。
+
+使用步骤
+1. 下载 build/rtc_serial_set_20261013/camera_to_dsi_display_rtc.bit。
+2. RAM调试下载 FDwork/anlu_app/build/anlu_app.elf；
+   Flash运行下载 FDwork/anlu_app2/build/anlu_app2.elf。
+3. 串口参数：USART1，115200，8N1，无流控。看到 SERIAL=rtc-set-v3。
+4. 关闭VOFA等占用COM9的串口工具，在PowerShell运行：
+   powershell -ExecutionPolicy Bypass -File D:\2026fpga\lab_hd_1_mipi_hdmi\tools\Set-RtcTime.ps1 -Port COM9
+   脚本先RTC SYNC确认完整命令往返，再发送电脑当前本地时间，
+   等待接受、硬件核验成功、可信时间回读。默认逐字节间隔2ms；
+   -ByteDelayMs 0用于实板连续突发接收验证。只重试无写入的SYNC，不自动重试SET。
+   其他端口改-Port；-DryRun只输出命令，不打开串口。
+5. 成功输出 RTC: SET_OK verified=1 osf=0，随后TIME行trusted=1。
+   屏幕右上角应显示并递增；这是板上验证项目，仿真不能代替实际验证。
+
+也可在VOFA文本发送框发送 RTC SET YYYY-MM-DD HH:MM:SS，替换成当前日期时间，
+行尾选择换行。例：RTC SET 2026-10-13 23:45:00（示例值，不是自动获取时间）。
+查询命令：RTC GET。支持CR、LF和CRLF；日期范围2000..2099，24小时制。
+午夜写次日00:xx:xx，不接受24:xx:xx。FORMAT_OR_DATE表示格式或日期非法。
+收到RX_ERROR后先发一个空行，再完整重发命令；脚本自动执行同步握手。
+严格检查日期、闰年、星期计算、字段长度和字符；不接受编译时间自动覆盖RTC。
+MCU复位不会自动校时，也不会清除OSF。装有有效后备电池时DS3231可独立保持时间。
+
+校时过程
+MCU只解析串口和写APB命令，不占用CPU等待I2C。
+FPGA等待当前读操作完成后锁存请求，读改写控制寄存器EOSC=0，
+写0x00..0x06七个BCD寄存器，逐个回读完全一致后才清OSF；
+清OSF保留EN32kHz，向两闹钟标志位写1以保持其原值。
+再次完整读取时间和状态，OSF=0后发布可信快照并返回成功。
+写入、核对、清OSF中任一步失败，不发布成功；显式重新校时才能恢复本次失效状态。
+读事务仍有秒边界重读和I2C超时/总线恢复。
+
+APB（基址0x70000000）
+0x60/64/68：原时间、日期、状态读寄存器，格式不变。
+0x78：待写时间 00 HH MM SS（BCD）。0x7C：待写日期 YY MM DD weekday。
+0x80写0x53455431提交（全字节写使能）；忙时拒绝新请求。
+0x80读：bit0 busy，bit1 done，bit2 failed，bits7:4故障，bits31:16完成序号。
+故障1=NACK，2=SCL超时，3=SDA卡低，4=跨秒重试耗尽，5=写入回读不符，6=OSF未清除。
+0x84读0x52544332（RTC2能力）。旧bit缺少能力时MCU报告UPDATE_FPGA，不盲写。
+
+周期日志
+每个真实秒输出一行：TIME、trusted、health、fault、osf、reads。
+health=0正常，1 I2C错误，2 OSF时间不可信，3等待有效时间，4无效BCD，
+5读取计数超过5秒未更新，6秒值超过5秒未推进。
+原SDK GetTimerFreq把SystemCoreClock（已为TIMER_CLOCK）再次除5，
+RTC局部改用PH1P35_MCU_TIMER_CLOCK=100MHz；未修改USB、SD、AF的时间基准。
+USART RX中断缓冲128字节，期间不打印、不访问APB；主循环及SD服务回调解析命令。
+SET_TIMEOUT表示未确认结果，不表示RTC一定未被写入；先RTC GET，再决定重试。
+RAW触屏和VCM周期日志仍关闭，SD日志保留。
+
+验证与限制
+tests/test_rtc_diag.c：真实共享代码的日期、星期、BCD、OSF、日志节流、
+新旧FPGA、序号确认、分段串口、换行、溢出、忙、取消、计时回绕和超时测试。
+tests/tb_rtc_set.v：真实I2C引脚边沿从机模型，校时、命令冻结、忙请求、
+回读不符、不应答、OSF清除失败、重试恢复、闹钟标志保留。
+tests/tb_ds3231_i2c.v：原读取、跨午夜、OSF、断线和SCL超时恢复。
+tests/tb_max3421e_apb.v：RTC提交键、字节使能、busy及原USB/UI寄存器。
+tests/tb_rtc_osd.v：右上角时间显示和无效占位。
+UART中断电路及校时最终需实板验证。若只有发送日志、完全收不到命令，
+检查USB转串口TX至FPGA USART1 RX（J1）的实际连接以及串口是否被其他程序占用。
+RAM固件保留2KiB栈、1KiB最小堆，链接未重叠，但TCM剩余空间很少；
+UI/USB代码改为按体积优化，USB寄存器模型回归通过。
+
+2026-10-13 本次构建结果
+FPGA完整综合、布局、布线、bitgen完成，日志：build/rtc_serial_full_build.log。
+最终Setup WNS=0.105ns，Hold WNS=0.020ns，Setup/Hold TNS均为0。
+Slice19434/21216（91.60%），LUT18799（88.61%），寄存器16305（38.43%），ERAM69，DSP14。
+RAM text40656/data304/bss8100，堆0800B3E0..0800B7E0，栈0800B800..0800C000。
+Flash text37068/data304/bss8100。文件SHA256记录于同目录artifacts.sha256.json。
+RTC、校时、OSD、APB、USB和SD/真实DDR命令FIFO回归均通过。
+尚未向实板下载或通过实际串口完成一次校时。
+
+2026-10-14 接收修正 rtc-set-v3
+此前实板RX_ERROR只打印通用错误，尚未识别硬件错误位，不能断言唯一根因。
+修正启动时旧FIFO/错误状态未清理；错误位在读取FIFO前W1C，保留随后新错误；
+主循环提取并清除错误时短暂屏蔽该UART中断，避免与ISR读改写竞争。
+保留具体flags：0x10硬件溢出、0x20奇偶校验、0x100帧、0x200停止位，
+0x01000000软件环形缓冲溢出；可同时置位。错误数据不会用于校时。
+启动标识缩短为RTC: SERIAL=rtc-set-v3，接线/波特率与v2相同。
+脚本去掉固定100ms等待后盲目丢弃数据，改为SYNC_OK握手。
+UART模型/日期解析/脚本模拟测试通过；RAM和Flash固件编译通过。
+模型不能证明实际UART采样/布线/中断延迟，仍需实板确认SYNC_OK、SET_OK和trusted=1。
+FPGA未改，已下载RTC2 bit的板子只需更新对应MCU ELF和电脑脚本。
+构建日志：build/rtc_rx_ram_build.log、build/rtc_rx_flash_build.log。
+本次哈希清单：build/rtc_rx_v3.sha256.json；20261013清单是旧构建历史。

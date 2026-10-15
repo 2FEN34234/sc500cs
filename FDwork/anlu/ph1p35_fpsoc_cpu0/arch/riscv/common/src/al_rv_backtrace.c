@@ -1,6 +1,13 @@
 #include "al_core.h"
 #include "al_rv_core.h"
 #include "al_backtrace.h"
+#if defined(AL_CAMERA_COMPACT_DIAG) && __riscv_xlen == 32
+/* RV32 exception diagnostics use integer formats only. Keep diagnostics while
+ * avoiding a second newlib stdio/allocator stack in the 48 KiB camera image.
+ * The compact printer ignores width padding; register values remain intact. */
+#include "al_simp_printf.h"
+#define printf al_simp_printf
+#endif
 
 /* Note:Add -fno-omit-frame-pointer to the CFLAGS in the makefile to print the all call stack */
 struct StackFrame {

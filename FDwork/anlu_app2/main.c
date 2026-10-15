@@ -9,10 +9,16 @@
 #include "al_core.h"
 #include <stdlib.h>
 #include "max3421e_diag.h"
+#include "../shared/touch_focus.h"
+#include "../shared/sd_recorder.h"
+#include "../shared/rtc_diag.h"
 
-/* Touch-report capture build: keep USART1 dedicated to HID touch packets. */
-#define USB_TOUCH_ONLY_SERIAL 1
-#if USB_TOUCH_ONLY_SERIAL
+/* Match the RAM application's compact UI/AF control code. */
+#pragma GCC optimize ("Os")
+
+/* Suppress periodic UI/lens diagnostics; USART1 carries SD and RTC diagnostics. */
+#define UI_QUIET_SERIAL 1
+#if UI_QUIET_SERIAL
 #define al_printf(...) ((void)0)
 #endif
 
@@ -92,12 +98,13 @@ static inline void ui_write(uint32_t offset, uint32_t value)
     *ui_reg(offset) = value;
 }
 
-static void ui_ctrl(uint32_t menu, uint32_t edit, uint32_t info)
+static void ui_ctrl(uint32_t menu, uint32_t edit, uint32_t info, uint32_t picture_page)
 {
-    ui_write(UI_CTRL, (menu ? 1u : 0u) | (edit ? 2u : 0u) | (info ? 4u : 0u));
+    ui_write(UI_CTRL, (menu ? 1u : 0u) | (edit ? 2u : 0u) |
+             (info ? 4u : 0u) | ((picture_page & 3u) << 3));
 }
 
-/* MCU-owned _9 image controls.  step is 1..5: normal/effect, normal/effect,
+/* MCU-owned _9 image controls. Hardware step IDs 2..5 (displayed 1..4): normal/effect,
  * shape, motion, red tracking.  In motion mode target selects 3/2/1 in the
  * FPGA recognizer; in tracking mode bit 9 requests a reacquire pulse. */
 static void image_ctrl_write(uint32_t step, uint32_t effect,
@@ -203,11 +210,11 @@ static void lens_diag_report(void)
 static void autofocus_restart(void)
 {
     uint32_t status = ui_read(UI_LENS_STAT);
-    if(status & 1u) {
-        al_printf("LOG: LENS busy; wait for transaction completion\r\n");
-        return;
-    }
-    if((status & 7u) != 2u) {
+    /* Queue a new scan even during a background ADC transaction. The task
+     * waits for idle before commanding the lens, so a valid double tap is
+     * not lost just because the periodic I2C read happens at that instant. */
+    if((status & 6u) != 2u) {
+        if(status & 1u) return;
         af_state = 3;
         if(lens_diag_available == 3) {
             /* Retry restores the FPGA initialization target to 8192. */
@@ -345,6 +352,12 @@ static void autofocus_task(void)
 /* All inputs commit through this one hardware boundary. */
 static void menu_commit(MenuState *s, const MenuState *old, unsigned actions)
 {
+    if(s->picture_available && picture_effective(s)!=picture_effective(old)) {
+        ui_write(0x70, picture_effective(s));
+        /* Read back hardware fields without saving Sobel's forced gamma as
+         * the user's preference. OSD shows the effective hardware setting. */
+        s->picture=(ui_read(0x70) & ~(1u << 6)) | (s->picture & (1u << 6));
+    }
     if(s->exposure != old->exposure) {
         ui_write(UI_EXPOSURE, s->exposure);
         s->exposure = ui_read(UI_EXPOSURE);
@@ -367,24 +380,53 @@ static void menu_commit(MenuState *s, const MenuState *old, unsigned actions)
         image_ctrl_write(s->image_step, s->image_effect, s->image_target,
                          s->logo_enable, (actions & MENU_REACQUIRE) != 0);
     if(s->index != old->index) ui_write(UI_INDEX, s->index);
-    if(s->menu != old->menu || s->edit != old->edit || s->info != old->info)
-        ui_ctrl(s->menu, s->edit, s->info);
+    if(s->menu != old->menu || s->edit != old->edit || s->info != old->info ||
+       s->picture_page != old->picture_page)
+        ui_ctrl(s->menu, s->edit, s->info, s->picture_page);
+    if(actions & MENU_PHOTO) recorder_action(REC_PHOTO,0);
+    if(actions & MENU_RECORD) recorder_action(REC_START,0);
+    if(actions & MENU_STOP) recorder_action(REC_STOP,0);
+    if(actions & MENU_INTERVAL) {
+        static const unsigned seconds[5]={2,5,10,30,60};
+        recorder_action(REC_INTERVAL,seconds[s->record_interval]);
+    }
+    recorder_action(REC_UI,(s->record_page?1024u:0)|(s->record_interval<<12));
     if(actions & MENU_AF) autofocus_restart();
     if(actions & MENU_FOCUS_UP) manual_focus_step(1);
     if(actions & MENU_FOCUS_DOWN) manual_focus_step(-1);
 }
 
+static TouchFocus focus_gesture;
 static void touchscreen_handle(MenuState *s)
 {
     TouchEvent event;
     if(max3421e_touch_pop(&event)) {
         MenuState old = *s;
-        /* Menu/AF hit-testing gets first ownership.  Only an unclaimed touch
-         * starts or updates the relative servo drag. */
-        unsigned actions = menu_touch(s, &event);
-        if(!(actions & MENU_AF))
-            actions |= touch_servo_apply(s, &event);
+        unsigned actions = touch_focus(&focus_gesture, &event,
+            (uint32_t)(AlSys_GetTimerTickCount()/(PH1P35_MCU_TIMER_CLOCK/1000u)),
+            touch_in_menu_area(s, &event));
+        actions |= menu_touch(s, &event);
+        if(actions & MENU_AF) {
+            /* Gate new behavior on the matching FPGA ROI capability. */
+            if(ui_read(0x98)==0x41465231u)
+                ui_write(0x94,touch_focus_roi(focus_gesture.x,focus_gesture.y));
+            else actions &= ~MENU_AF;
+            s->servo_touch_active=0;
+        } else actions |= touch_servo_apply(s, &event);
         menu_commit(s, &old, actions);
+    }
+}
+
+static MenuState *record_ui;
+#include "../shared/wifi_mcu.h"
+static void recorder_service(void) {
+    wifi_mcu_poll(1);
+    rtc_diag_poll((uint32_t)UI_APB_BASE);
+    max3421e_touch_poll();
+    if(record_ui) {
+        touchscreen_handle(record_ui);
+        unsigned keys=ui_read(UI_KEY)&15u;
+        if(keys) {focus_gesture=(TouchFocus){0};MenuState old=*record_ui;ui_write(UI_KEY,keys);menu_commit(record_ui,&old,menu_key(record_ui,keys));}
     }
 }
 
@@ -393,9 +435,9 @@ AL_S32 main(void)
     uint32_t id;
     uint32_t events;
     MenuState ui = {
-        .menu = 0, .exposure = 5990, .gain = 80,
+        .menu = 0, .exposure = 3990, .gain = 80,
         .servo_pan_us = 1500, .servo_tilt_us = 1500,
-        .image_step = 1, .logo_enable = 1, .touch_capture = -1
+        .image_step = 2, .logo_enable = 1, .touch_capture = -1
     };
     uint32_t last_report = 0;
 
@@ -434,7 +476,7 @@ AL_S32 main(void)
 
     /* Apply startup defaults even when the previous APB value is legal.
      * Legacy gain 16 is a valid sensor code but displays as an empty bar. */
-    ui.exposure = 5990u;
+    ui.exposure = 3990u;
     ui.gain = 80u;
     ui_write(UI_EXPOSURE, ui.exposure);
     ui_write(UI_GAIN, ui.gain);
@@ -451,16 +493,26 @@ AL_S32 main(void)
     ui.servo_menu_available = (ui.servo_pan_us >= 500u && ui.servo_pan_us <= 2500u &&
                             ui.servo_tilt_us >= 500u && ui.servo_tilt_us <= 2500u);
     image_ctrl_write(ui.image_step, ui.image_effect, ui.image_target, ui.logo_enable, 0);
+    ui.picture_available=(ui_read(0x74)==0x50494331u);
+    ui.picture=PICTURE_DEFAULT;
+    if(ui.picture_available) {
+        ui_write(0x70,picture_effective(&ui));
+        ui.picture=(ui_read(0x70) & ~(1u << 6)) | (ui.picture & (1u << 6));
+    }
     al_printf("SERVO: %s PAN/V6=%u us TILT/V4=%u us\r\n",
               ui.servo_menu_available ? "touch ready" : "new FPGA bit required",
               ui.servo_pan_us, ui.servo_tilt_us);
     /* APB 检查通过后自动显示菜单，便于直接确认 CPU 到 OSD 的链路。 */
     ui_write(UI_INDEX, ui.index);
-    ui_ctrl(ui.menu, ui.edit, ui.info);
+    ui_ctrl(ui.menu, ui.edit, ui.info, ui.picture_page);
     g_ui_debug_stage = 4;
     /* USB diagnostics are bounded; the existing menu continues on failure. */
     max3421e_diag_init((uint32_t)UI_APB_BASE);
     autofocus_task();
+    record_ui=&ui;
+    rtc_diag_init((uint32_t)UI_APB_BASE);
+    ui.record_available=recorder_init(recorder_service);
+    wifi_mcu_init();
 
     while(1) {
         g_ui_debug_stage = 5;
@@ -471,6 +523,7 @@ AL_S32 main(void)
             MenuState old = ui;
             unsigned actions;
             ui_write(UI_KEY, events); /* write-one-to-clear */
+            focus_gesture=(TouchFocus){0};
             actions = menu_key(&ui, events);
             menu_commit(&ui, &old, actions);
         }
@@ -518,6 +571,9 @@ AL_S32 main(void)
         }
         max3421e_touch_poll();
         touchscreen_handle(&ui);
+        rtc_diag_poll((uint32_t)UI_APB_BASE);
+        recorder_poll();
+        wifi_mcu_poll(0);
         g_ui_debug_stage = 6;
         AlSys_MDelay(1);
     }

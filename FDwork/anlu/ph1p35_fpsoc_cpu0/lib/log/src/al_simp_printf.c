@@ -82,8 +82,9 @@ static void printf_llu(unsigned long long val)
 
     // 从低位到高位，逐位取余，存入 buffer
     do {
-        *(p++) = '0' + (val % 10);
-        val /= 10;
+        volatile unsigned long long quotient = val / 10;
+        *(p++) = '0' + (val - quotient * 10);
+        val = quotient;
     } while (val);
 
     // 倒序输出
@@ -105,6 +106,7 @@ static void printf_lld(long long val)
     printf_llu((unsigned long long)val);
 }
 
+#ifndef AL_SIMP_NO_FLOAT
 static void printf_f(double val)
 {
     int decimal_places = 6;
@@ -151,6 +153,7 @@ static void printf_f(double val)
     }
 }
 
+#endif
 int al_simp_printf(const char *format, ...)
 {
     int i;
@@ -192,7 +195,12 @@ int al_simp_printf(const char *format, ...)
                     break;
                 }
                 if (format[i] == 'f') {
+#ifndef AL_SIMP_NO_FLOAT
                     printf_f(va_arg(ap,double));
+#else
+                    (void)va_arg(ap,double);
+                    printf_s("[float disabled]");
+#endif
                     break;
                 }
             }

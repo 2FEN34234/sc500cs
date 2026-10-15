@@ -1,13 +1,18 @@
-
-
 `include "video_params.vh"
 
 module design_top_wrapper (
+    output wire O_sd_clk, O_sd_mosi, O_sd_cs,
+    input wire I_sd_miso,
     input wire        I_sys_clk,
     input wire        I_rst_n,
 
     input wire        I_mcu_uart_rx,
     output wire       O_mcu_uart_tx,
+    // ESP-01: module TXD -> E12/RX0, module RXD <- E16/TX0.
+    input  wire       I_wifi_uart_rx,
+    output wire       O_wifi_uart_tx,
+    inout  wire       IO_wifi_reset_n,
+    inout  wire       IO_wifi_gpio0,
     output wire       O_usb_sclk,
     input  wire       I_usb_miso,
     // MAX3421E uses this same pad as the return-data line while its
@@ -281,6 +286,28 @@ module design_top_wrapper (
     wire [3:0]  S_rtc_fault;
     wire [31:0] S_rtc_read_count;
     wire [31:0] S_rtc_time0, S_rtc_time1, S_rtc_status;
+    wire [31:0] S_rtc_set_time0, S_rtc_set_time1, S_rtc_set_status;
+    wire S_rtc_set;
+    wire [1:0] S_wifi_ctrl;
+    (* async_reg="true" *) reg [1:0] S_wifi_pad_meta, S_wifi_pad_sync;
+    // Open-drain control: reset defaults to release, GPIO0 defaults to
+    // normal flash boot. External 3.3V pull-ups must hold both pins before
+    // FPGA configuration too. Never actively drive against a module button.
+    assign IO_wifi_reset_n = S_wifi_ctrl[0] ? 1'b0 : 1'bz;
+    assign IO_wifi_gpio0 = S_wifi_ctrl[1] ? 1'b0 : 1'bz;
+    always @(posedge S_mcu_apb_clk or negedge S_rst_n) begin
+        if(!S_rst_n) begin S_wifi_pad_meta<=2'b11; S_wifi_pad_sync<=2'b11; end
+        else begin S_wifi_pad_meta<={IO_wifi_gpio0,IO_wifi_reset_n}; S_wifi_pad_sync<=S_wifi_pad_meta; end
+    end
+    wire [31:0] S_focus_roi_apb;
+    (* async_reg="true" *) reg [31:0] S_focus_roi_p1, S_focus_roi_p2;
+    always @(posedge S_hdmi_pixel_clk or negedge S_hdmi_rst_n) begin
+        if(!S_hdmi_rst_n) begin
+            S_focus_roi_p1<=32'h01e00370; S_focus_roi_p2<=32'h01e00370;
+        end else begin
+            S_focus_roi_p1<=S_focus_roi_apb; S_focus_roi_p2<=S_focus_roi_p1;
+        end
+    end
     wire [31:0] S_focus_metric_pix;
     wire [31:0] S_focus_metric_apb;
     wire [15:0] S_servo_pan_us;
@@ -361,6 +388,28 @@ module design_top_wrapper (
     wire        S_ui_edit_apb;
     wire        S_ui_info_apb;
     wire [2:0]  S_ui_index_apb;
+    wire S_picture_page_apb;
+    wire S_mode_page_apb;
+    reg S_mode_page_p1, S_mode_page_p2;
+    reg S_picture_page_p1, S_picture_page_p2;
+    wire [15:0] S_picture_apb, S_picture_isp, S_picture_pixel;
+    picture_control_cdc u_picture_isp (
+        .src_clk(S_mcu_apb_clk), .dst_clk(S_csi_rx_clk), .rst_n(S_rst_n),
+        .requested(S_picture_apb), .frame_start(S_raw_tuser), .active(S_picture_isp)
+    );
+    picture_control_cdc u_picture_pixel (
+        .src_clk(S_mcu_apb_clk), .dst_clk(S_hdmi_pixel_clk), .rst_n(S_rst_n),
+        .requested(S_picture_apb), .frame_start(S_hdmi_vsync), .active(S_picture_pixel)
+    );
+    always @(posedge S_hdmi_pixel_clk or negedge S_hdmi_rst_n) begin
+        if(!S_hdmi_rst_n) begin
+            S_picture_page_p1<=0; S_picture_page_p2<=0;
+            S_mode_page_p1<=0; S_mode_page_p2<=0;
+        end else begin
+            S_picture_page_p1<=S_picture_page_apb; S_picture_page_p2<=S_picture_page_p1;
+            S_mode_page_p1<=S_mode_page_apb; S_mode_page_p2<=S_mode_page_p1;
+        end
+    end
     wire [15:0] S_ui_ae_apb;
     wire [15:0] S_ui_ag_apb;
     wire [2:0]  S_image_step_apb;
@@ -398,8 +447,8 @@ module design_top_wrapper (
     wire        S_osd_de;
     wire [23:0] S_osd_data;
 
-    // MCU menu image controls.  The step numbering matches the _9 menu:
-    // 1/2 normal display, 3 shape, 4 motion, 5 red tracking.
+    // MCU retains _9 hardware IDs 2..5: normal, shape, motion, red tracking.
+    // Original ID 1 is removed; the OSD numbers the remaining modes 1..4.
     assign S_dbg_step       = S_image_step_p2;
     assign S_dbg_disp_mode  = (S_image_step_p2 >= 3'd3) ? 3'd0 : 3'd5;
     assign S_dbg_recog_mode = (S_image_step_p2 >= 3'd3);
@@ -802,8 +851,8 @@ module design_top_wrapper (
             S_rtc_osf_p2     <= 1'b1;
             S_rtc_count_p1   <= 0; S_rtc_count_p2 <= 0;
             S_rtc_count_p3   <= 0; S_rtc_count_seen <= 0;
-            S_image_step_p1    <= 3'd1;
-            S_image_step_p2    <= 3'd1;
+            S_image_step_p1    <= 3'd2;
+            S_image_step_p2    <= 3'd2;
             S_image_effect_p1  <= 3'd0;
             S_image_effect_p2  <= 3'd0;
             S_image_target_p1  <= 2'd0;
@@ -886,6 +935,11 @@ module design_top_wrapper (
 
     );
 
+    // TD derives the generated MCU_JTAG_SEL from JTAG_Available. Regenerating
+    // USART0 restored "1" (PIB), disconnecting the board's PAD debug chain.
+    // Keep this board-level override outside generated IP so regeneration
+    // cannot silently switch away from the one-cable PAD connection.
+    defparam u_mcu.MCU_521bd43d073e_Inst.MCU_JTAG_SEL = "0";
     RISCV_F6F1D1P0_0 u_mcu (
         .core_sysrst ( S_mcu_core_sysrst ),
         // Constant inputs require MCU_JTAG_SEL="0" (PAD path) in the IP.
@@ -919,6 +973,8 @@ module design_top_wrapper (
         .gpio7_in    ( S_mcu_gpio7_in    ),
         .gpio7_out   ( S_mcu_gpio7_out   ),
         .gpio7_dir   ( S_mcu_gpio7_dir   ),
+        .uart0_tx    ( O_wifi_uart_tx     ),
+        .uart0_rx    ( I_wifi_uart_rx     ),
         .uart1_tx    ( O_mcu_uart_tx      ),
         .uart1_rx    ( I_mcu_uart_rx      ),
         .i2c_sda_in  ( 1'b0               ),
@@ -1009,6 +1065,8 @@ module design_top_wrapper (
         .POLL_CYCLES  ( 32'd50000000 ),
         .GAP_CYCLES   ( 32'd1000 )
     ) u_ds3231_i2c_ctrl (
+        .I_set(S_rtc_set), .I_set_time0(S_rtc_set_time0), .I_set_time1(S_rtc_set_time1),
+        .O_set_status(S_rtc_set_status),
         .I_clk        ( S_mcu_apb_clk ),
         .I_rst_n      ( S_rst_n ),
         .IO_scl       ( IO_rtc_scl ),
@@ -1048,6 +1106,31 @@ module design_top_wrapper (
         .O_tilt      ( O_servo_tilt   )
     );
 
+
+    wire [31:0] rec_rdata, legacy_rdata, rec_ui_status;
+    wire legacy_ready, legacy_error;
+    wire rec_select=(S_mcu_paddr[19:12]==8'h01);
+    wire rec_block, rec_wr, rec_rd, video_read_valid;
+    wire [24:0] rec_addr;
+    wire [127:0] rec_data;
+    assign S_mcu_prdata=rec_select?rec_rdata:legacy_rdata;
+    assign S_mcu_pready=rec_select?1'b1:legacy_ready;
+    assign S_mcu_pslverr=rec_select?1'b0:legacy_error;
+    sd_recorder u_recorder (
+        .rst_n(S_rst_n), .apb_clk(S_mcu_apb_clk),
+        .pixel_clk(S_hdmi_pixel_clk), .ddr_clk(S_ddr_clk),
+        .addr(S_mcu_paddr[7:0]), .sel(S_mcu_psel && rec_select),
+        .enable(S_mcu_penable), .write(S_mcu_pwrite), .wdata(S_mcu_pwdata),
+        .rdata(rec_rdata), .vs(S_edge_vsync), .de(S_edge_de), .rgb(S_edge_data),
+        .sd_clk(O_sd_clk), .sd_mosi(O_sd_mosi), .sd_cs(O_sd_cs), .sd_miso(I_sd_miso),
+        .vi_busy(S_video_in_wr_busy), .vo_busy(S_video_out_rd_busy),
+        .vo_read(S_vo_ddr_rd_en), .ready(S_ddr_user_ready),
+        .rd_valid(S_ddr_user_rd_valid), .rd_data(S_ddr_user_rd_data),
+        .block_video(rec_block), .wr_en(rec_wr), .rd_en(rec_rd),
+        .mem_addr(rec_addr), .mem_data(rec_data),
+        .video_rd_valid(video_read_valid), .ui_status(rec_ui_status)
+    );
+
     mcu_ui_apb_regs u_mcu_ui_apb_regs (
         .I_clk         ( S_mcu_apb_clk ),
         .I_rst         ( ~S_rst_n ),
@@ -1056,18 +1139,21 @@ module design_top_wrapper (
         .O_usb_res_n   ( S_apb_usb_res_n ),
         .O_usb_spi_enable ( S_apb_usb_spi_enable ),
         .I_paddr       ( S_mcu_paddr ),
-        .I_psel        ( S_mcu_psel ),
+        .I_psel        ( S_mcu_psel && !rec_select ),
         .I_penable     ( S_mcu_penable ),
         .I_pwrite      ( S_mcu_pwrite ),
         .I_pwdata      ( S_mcu_pwdata ),
         .I_pstrobe     ( S_mcu_pstrobe ),
-        .O_prdata      ( S_mcu_prdata ),
-        .O_pready      ( S_mcu_pready ),
-        .O_pslverr     ( S_mcu_pslverr ),
+        .O_prdata      ( legacy_rdata ),
+        .O_pready      ( legacy_ready ),
+        .O_pslverr     ( legacy_error ),
         .O_menu_enable ( S_ui_enable_apb ),
         .O_edit_enable ( S_ui_edit_apb ),
         .O_info_enable ( S_ui_info_apb ),
         .O_menu_index  ( S_ui_index_apb ),
+        .O_picture_page( S_picture_page_apb ),
+        .O_mode_page   ( S_mode_page_apb ),
+        .O_picture_ctrl( S_picture_apb ),
         .O_exposure    ( S_ui_ae_apb ),
         .O_gain        ( S_ui_ag_apb ),
         .O_image_step  ( S_image_step_apb ),
@@ -1084,9 +1170,13 @@ module design_top_wrapper (
         .I_lens_adc_count( S_lens_adc_count ),
         .I_lens_bus_state( S_lens_bus_state ),
         .I_focus_metric( S_focus_metric_apb ),
+        .O_focus_roi   ( S_focus_roi_apb ),
         .I_rtc_time0   ( S_rtc_time0 ),
         .I_rtc_time1   ( S_rtc_time1 ),
         .I_rtc_status  ( S_rtc_status ),
+        .O_rtc_set_time0(S_rtc_set_time0), .O_rtc_set_time1(S_rtc_set_time1),
+        .O_rtc_set(S_rtc_set), .I_rtc_set_status(S_rtc_set_status),
+        .O_wifi_ctrl(S_wifi_ctrl), .I_wifi_pads(S_wifi_pad_sync),
         .O_lens_cmd    ( S_lens_cmd ),
         .O_lens_retry  ( S_lens_retry ),
         .O_lens_read_adc( S_lens_read_adc ),
@@ -1253,11 +1343,10 @@ assign S_raw_tuser  = S_axis_tuser;
 
 
 // ISP algorithm top level.  The image algorithm now follows the _9 project:
-// frame-level AWB -> chroma coring -> saturation boost -> linear-domain
-// downscale -> gamma/brightness.  The controls are deliberately fixed here
-// for the first integration pass so the existing MCU/USB/RTC/servo control
-// paths remain untouched.  They can be exposed through the current APB menu
-// after the pixel and resource checks pass.
+// frame-level AWB -> chroma coring -> saturation -> linear downscale ->
+// display denoise -> gamma/brightness. PIC1 settings arrive atomically from
+// the MCU mailbox and are applied at the next raw frame boundary. Chroma
+// coring remains in its existing fixed-zero configuration.
 wire [7:0] S_isp_stat_sat_pre;
 wire [7:0] S_isp_stat_sat_post;
 wire [7:0] S_isp_stat_mean_r;
@@ -1279,15 +1368,17 @@ isp_top u_isp_top (
 .O_tlast         (S_ISP_O_tlast ),
 .O_tuser         (S_ISP_O_tuser ),
 .O_tvalid        (S_ISP_O_tvalid),
-.I_awb_bypass    (1'b0),
-.I_blc_off       (8'd16),
-.I_gamma_en      (1'b1),
-.I_bright        (2'd3),
+.I_awb_bypass    (S_picture_isp[13:12] == 2'd3),
+.I_blc_off       ({2'd0,S_picture_isp[5:0]}),
+.I_gamma_en      (S_picture_isp[6]),
+.I_bright        (S_picture_isp[8:7]),
 .I_core_sel      (3'd0),
-.I_awb_gate_en   (1'b0),
+.I_awb_gate_en   (S_picture_isp[13:12] == 2'd2),
 .I_awb_gate_th   (8'd32),
-.I_awb_smooth_en (1'b0),
-.I_sat_off       (1'b0),
+.I_awb_smooth_en (S_picture_isp[13:12] != 2'd0),
+.I_sat_off       (S_picture_isp[11:9] == 3'd0),
+.I_sat_sel       (S_picture_isp[10:9] - 2'd1),
+.I_denoise       (S_picture_isp[15:14]),
 .O_stat_sat_pre  (S_isp_stat_sat_pre),
 .O_stat_sat_post (S_isp_stat_sat_post),
 .O_stat_mean_r   (S_isp_stat_mean_r),
@@ -1339,7 +1430,7 @@ isp_top u_isp_top (
 
         .I_ddr_clk            ( S_ddr_clk             ),
 		.I_display_pause      ( 1'b0                  ),
-        .I_video_out_rd_busy  ( S_video_out_rd_busy   ),
+        .I_video_out_rd_busy  ( S_video_out_rd_busy | rec_block ),
         .O_video_in_wr_busy   ( S_video_in_wr_busy    ),
         .O_video_out_rp       ( S_video_out_rp        ),
 
@@ -1351,14 +1442,14 @@ isp_top u_isp_top (
 
 
 
-    assign S_ddr_user_wr_en    = S_vi_ddr_wr_en;
+    assign S_ddr_user_wr_en    = S_vi_ddr_wr_en | rec_wr;
 
-    assign S_ddr_user_rd_en    = S_vo_ddr_rd_en;
+    assign S_ddr_user_rd_en    = S_vo_ddr_rd_en | rec_rd;
 
     assign S_ddr_user_addr     = S_vi_ddr_wr_en ? S_vi_ddr_wr_addr :
-                                 S_vo_ddr_rd_en ? S_vo_ddr_rd_addr : 'd0;
+                                 S_vo_ddr_rd_en ? S_vo_ddr_rd_addr : rec_addr;
 
-    assign S_ddr_user_wr_data  = S_vi_ddr_wr_data;
+    assign S_ddr_user_wr_data  = rec_wr ? rec_data : S_vi_ddr_wr_data;
 
 
     assign S_video_out_rst_n = S_hdmi_rst_n;
@@ -1368,13 +1459,13 @@ isp_top u_isp_top (
         .I_ddr_clk           ( S_ddr_clk            ),
  
         .O_video_out_rd_busy ( S_video_out_rd_busy  ),
-        .I_video_in_wr_busy  ( S_video_in_wr_busy   ),
+        .I_video_in_wr_busy  ( S_video_in_wr_busy | rec_block ),
         .I_video_out_rp      ( S_video_out_rp       ),
  
         .O_ddr_user_rd_en    ( S_vo_ddr_rd_en       ),
         .O_ddr_user_addr     ( S_vo_ddr_rd_addr     ),
         .I_ddr_user_ready    ( S_ddr_user_ready     ),
-        .I_ddr_user_rd_valid ( S_ddr_user_rd_valid  ),
+        .I_ddr_user_rd_valid ( video_read_valid ),
         .I_ddr_user_rd_data  ( S_ddr_user_rd_data   ),
 
         .I_dsi_clk           ( S_hdmi_pixel_clk     ),
@@ -1706,21 +1797,24 @@ isp_top u_isp_top (
         .O_data           (S_final_data)
     );
 
-    // Use the camera image before OSD overlay for contrast autofocus.
+    // Measure the selected region before effects, recognition and OSD overlays.
     focus_metric u_focus_metric (
         .I_clk          ( S_hdmi_pixel_clk ),
         .I_rst_n        ( S_hdmi_rst_n ),
-        .I_vsync        ( S_final_vsync ),
-        .I_de           ( S_final_de ),
-        .I_data         ( S_final_data ),
+        .I_vsync        ( S_hdmi_out_vsync ),
+        .I_de           ( S_hdmi_out_de ),
+        .I_data         ( S_hdmi_base_data ),
+        .I_roi          ( S_focus_roi_p2 ),
         .O_metric       ( S_focus_metric_pix ),
         .O_frame_toggle ( S_focus_frame_toggle )
     );
 
     ui_osd #(
         .H_ACTIVE(`HDMI_H_ACTIVE),
-        .V_ACTIVE(`HDMI_V_ACTIVE)
+        .V_ACTIVE(`HDMI_V_ACTIVE),
+        .PIXEL_CLOCK_HZ(`HDMI_PIXEL_CLOCK_HZ)
     ) u_ui_osd (
+        .I_record_status (rec_ui_status),
         .I_clk          ( S_hdmi_pixel_clk ),
         .I_rst_n        ( S_hdmi_rst_n ),
         .I_vsync        ( S_final_vsync ),
@@ -1731,6 +1825,11 @@ isp_top u_isp_top (
         .I_edit_enable  ( S_ui_edit_p2 ),
         .I_info_enable  ( S_ui_info_p2 ),
         .I_menu_index   ( S_ui_index_p2 ),
+        .I_picture_page ( S_picture_page_p2 ),
+        .I_mode_page    ( S_mode_page_p2 ),
+        .I_focus_roi    ( S_focus_roi_p2 ),
+        .I_image_step   ( S_image_step_p2 ),
+        .I_picture_ctrl ( S_picture_pixel ),
         .I_exposure     ( S_ui_ae_p2 ),
         .I_gain         ( S_ui_ag_p2 ),
         .I_servo_pan_us ( S_ui_servo_pan_p2 ),

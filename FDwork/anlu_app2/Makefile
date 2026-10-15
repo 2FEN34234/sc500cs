@@ -52,10 +52,14 @@ ASM_SRCS :=
 #########################################################################
 # 3. CFLAGS
 #########################################################################
-CFLAGS := -O2 -g
+# Share RISC-V register-save helpers to fit touch gestures in TCM.
+# Keep the existing 1 KiB heap and 2 KiB stack.
+CFLAGS := -Os -g -flto -msave-restore -DAL_CAMERA_COMPACT_DIAG
 # This application only formats integer diagnostics.  The SDK default pulls
 # in the floating-point printf formatter and wastes several KiB of the image.
 PFLOAT := 0
+# The SDK's separate diagnostic formatter otherwise pulls software double math.
+export AL_SIMP_NO_FLOAT := 1
 
 
 #########################################################################
@@ -96,3 +100,7 @@ LINKER_SCRIPT := ./lds/gcc_$(CHIP)_$(DOWNLOAD).ld
 include $(SDK_ROOT)/tools/make/rules.mk
 
 # vim: syntax=make
+
+# Stack for FatFs plus cooperative touch service.
+LDFLAGS += -Wl,--defsym=__STACK_SIZE=2048
+LDFLAGS += -flto

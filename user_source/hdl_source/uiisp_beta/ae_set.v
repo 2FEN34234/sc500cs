@@ -46,14 +46,12 @@ output wire [15:0] O_ag
 );
 	
 
-// Full 模式：VTS=3000，手册规定曝光范围为 3 到 2*VTS-10。
-// 曝光单位是半行，当前行时间约 16.67 us；最大曝光约 49.9 ms，摄像头输入约 20 fps。
-// HDMI 输出时序仍为 1920x1080@30；按键 0/1 每次减小/增加 120（约 1 ms）。
+// Full mode: VTS=2000, nominal camera rate 30 fps with existing PLL/HTS.
+// Exposure is in half-lines: 3..(2*VTS-10), about 33.25 ms maximum.
+// HDMI timing is unchanged; shorter VTS reduces 20-to-30 Hz frame repetition.
 localparam [15:0] AE_MIN         = 16'd3;
-localparam [15:0] AE_MAX         = 16'd5990;
-// VTS is 3000 in uics500reg.v, so 5990 is the highest safe exposure
-// (2*VTS-10).  Use the brighter end of the available range at startup.
-localparam [15:0] AE_INIT        = 16'd5990;
+localparam [15:0] AE_MAX         = 16'd3990;
+localparam [15:0] AE_INIT        = 16'd3990;
 localparam [15:0] AE_STEP_FINE   = 16'd120;
 // SC500 模拟增益范围为 1.0x..15.75x；索引 16..143 对应查表输入 0..127。
 // 按键 2/3 每次减小/增加一级模拟增益，上电默认使用 _9 的 4.13x 档。

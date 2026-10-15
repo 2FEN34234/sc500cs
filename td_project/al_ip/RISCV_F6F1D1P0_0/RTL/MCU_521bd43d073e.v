@@ -50,6 +50,9 @@ module MCU_521bd43d073e
 	output        gpio7_out,
 	output        gpio7_dir,
 
+	output        uart0_tx,
+	input         uart0_rx,
+
 	output        uart1_tx,
 	input         uart1_rx,
 
@@ -133,6 +136,7 @@ module MCU_521bd43d073e
 		.por_reset(por_reset),
 		.core_clk_en(1'b1),
 		.dbg_stop(1'b0),
+		// Match the working RTC baseline; regeneration must pass MCU preflight.
 		.dbg_stop_on_reset(1'b0),
 		.dbg_stop_at_boot(1'b0),
 		.dbg_mux_sel(2'h3),
@@ -176,7 +180,8 @@ module MCU_521bd43d073e
 		.gpio7_out(gpio7_out),
 		.gpio7_dir(gpio7_dir),
 
-		.uart0_rx(1'h0),
+		.uart0_tx(uart0_tx),
+		.uart0_rx(uart0_rx),
 
 		.uart1_tx(uart1_tx),
 		.uart1_rx(uart1_rx),

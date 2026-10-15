@@ -26,6 +26,8 @@ module isp_top (
     input  wire [7:0]  I_awb_gate_th,  // 近灰门限（8bit 线性域），建议 32~64
     input  wire        I_awb_smooth_en,// 1 = AWB 增益 IIR 平滑（α=7/8）+ 目标限幅 0.5x~4x
     input  wire        I_sat_off,      // 1 = 饱和度增强直通（×1.0）：用于“撤除所有增益”对照档
+    input  wire [1:0]  I_sat_sel,
+    input  wire [1:0]  I_denoise,
     output wire [7:0]  O_stat_sat_pre,
     output wire [7:0]  O_stat_sat_post,
     output wire [7:0]  O_stat_mean_r,
@@ -206,6 +208,7 @@ awb #(
         .I_clk         (axi4s_video_aclk),
         .I_rst_n       (I_rst_n),
         .I_sat_off     (I_sat_off),
+        .I_sat_sel     (I_sat_sel),
         .I_frame_start (S_core_tuser),
         .I_valid       (S_core_tvalid),
         .I_data        (S_core_tdata),
@@ -221,14 +224,22 @@ awb #(
     //   而且这一级只处理 1920 宽的像素（少 25% 运算量）。
     //   运行时可关（档位 1），方便 A/B 对比。
     // ======================================================================
+    wire dn_fs, dn_valid, dn_last;
+    wire [95:0] dn_data;
+    picture_denoise #(.WORDS(`SCALE_WIDTH/4)) u_display_denoise (
+        .clk(axi4s_video_aclk), .rst_n(I_rst_n),
+        .frame_start(scale_O_tuser), .valid(scale_O_tvalid), .last(scale_O_tlast),
+        .data(scale_O_tdata), .strength(I_denoise),
+        .out_frame_start(dn_fs), .out_valid(dn_valid), .out_last(dn_last), .out_data(dn_data)
+    );
     rgb96_gamma u_rgb96_gamma (
         .I_clk         (axi4s_video_aclk),
         .I_rst_n       (I_rst_n),
         .I_enable      (I_gamma_en),
         .I_bright      (I_bright),
-        .I_frame_start (scale_O_tuser),
-        .I_valid       (scale_O_tvalid),
-        .I_data        (scale_O_tdata),
+        .I_frame_start (dn_fs),
+        .I_valid       (dn_valid),
+        .I_data        (dn_data),
         .O_frame_start (S_gam_tuser),
         .O_valid       (S_gam_tvalid),
         .O_data        (S_gam_tdata)
@@ -1020,6 +1031,7 @@ module rgb96_sat_boost #(
     //   用途 = “撤除所有增益”的对照档（判断彩色噪点是不是被增益放大的）
     //   直通与增强走同一级输出寄存器，所以延时完全一致，不会错位。
     input  wire        I_sat_off,
+    input  wire [1:0]  I_sat_sel,
     input  wire        I_frame_start,
     input  wire        I_valid,
     input  wire [95:0] I_data,
@@ -1113,18 +1125,18 @@ module rgb96_sat_boost #(
                 O_data <= S_data_2d;            // ★ 直通（×1.0）：见模块头注释
             else
             O_data        <= {
-                sat_boost(S_data_2d[95:88], S_y_2d[31:24], SAT_SEL),
-                sat_boost(S_data_2d[87:80], S_y_2d[31:24], SAT_SEL),
-                sat_boost(S_data_2d[79:72], S_y_2d[31:24], SAT_SEL),
-                sat_boost(S_data_2d[71:64], S_y_2d[23:16], SAT_SEL),
-                sat_boost(S_data_2d[63:56], S_y_2d[23:16], SAT_SEL),
-                sat_boost(S_data_2d[55:48], S_y_2d[23:16], SAT_SEL),
-                sat_boost(S_data_2d[47:40], S_y_2d[15:8],  SAT_SEL),
-                sat_boost(S_data_2d[39:32], S_y_2d[15:8],  SAT_SEL),
-                sat_boost(S_data_2d[31:24], S_y_2d[15:8],  SAT_SEL),
-                sat_boost(S_data_2d[23:16], S_y_2d[7:0],   SAT_SEL),
-                sat_boost(S_data_2d[15:8],  S_y_2d[7:0],   SAT_SEL),
-                sat_boost(S_data_2d[7:0],   S_y_2d[7:0],   SAT_SEL)
+                sat_boost(S_data_2d[95:88], S_y_2d[31:24], I_sat_sel),
+                sat_boost(S_data_2d[87:80], S_y_2d[31:24], I_sat_sel),
+                sat_boost(S_data_2d[79:72], S_y_2d[31:24], I_sat_sel),
+                sat_boost(S_data_2d[71:64], S_y_2d[23:16], I_sat_sel),
+                sat_boost(S_data_2d[63:56], S_y_2d[23:16], I_sat_sel),
+                sat_boost(S_data_2d[55:48], S_y_2d[23:16], I_sat_sel),
+                sat_boost(S_data_2d[47:40], S_y_2d[15:8],  I_sat_sel),
+                sat_boost(S_data_2d[39:32], S_y_2d[15:8],  I_sat_sel),
+                sat_boost(S_data_2d[31:24], S_y_2d[15:8],  I_sat_sel),
+                sat_boost(S_data_2d[23:16], S_y_2d[7:0],   I_sat_sel),
+                sat_boost(S_data_2d[15:8],  S_y_2d[7:0],   I_sat_sel),
+                sat_boost(S_data_2d[7:0],   S_y_2d[7:0],   I_sat_sel)
             };
         end
     end

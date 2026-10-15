@@ -42,6 +42,8 @@ typedef struct {
     uint32_t exposure, gain, servo_pan_us, servo_tilt_us;
     uint32_t servo_menu_available;
     uint32_t image_step, image_effect, image_target, logo_enable;
+    uint32_t picture_page, picture, picture_available; /* page: 0 main, 1 picture, 2 mode */
+    uint32_t record_page, record_available, record_interval;
     int touch_capture; /* -1: none, 0..3: slider, 4: toggle, 5: AF, 6: row */
     /* A servo drag is relative to the point where the finger went down. */
     uint8_t servo_touch_active;
@@ -49,7 +51,37 @@ typedef struct {
     uint16_t servo_touch_pan0, servo_touch_tilt0;
 } MenuState;
 enum { MENU_AF = 1, MENU_FOCUS_UP = 2, MENU_FOCUS_DOWN = 4,
-       MENU_REACQUIRE = 8 };
+       MENU_REACQUIRE = 8, MENU_PHOTO=16, MENU_RECORD=32, MENU_STOP=64, MENU_INTERVAL=128 };
+/* MCU startup/DEFAULT profile for PIC1: BLACK=12, gamma off, brightness 1.125x.
+ * Firmware explicitly writes this even with the previous FPGA reset profile. */
+#define PICTURE_DEFAULT 0x108cu
+static inline uint32_t picture_effective(const MenuState *s)
+{
+    /* Hardware IDs 2..5 are displayed as modes 1..4; original ID 1 is removed.
+     * Sobel is displayed only in ID 2 with effect 5. Keep the user's
+     * gamma preference in MenuState so leaving Sobel restores it. */
+    return s->picture | ((s->image_step == 2u &&
+                           s->image_effect == 5u) ? (1u << 6) : 0u);
+}
+static inline void picture_adjust(MenuState *s, int direction)
+{
+    unsigned shift, mask, high, value;
+    switch(s->index) {
+    case 0: shift=0; mask=63; high=63; break;
+    case 1: shift=6; mask=1; high=1; break;
+    case 2: shift=7; mask=3; high=3; break;
+    case 3: shift=9; mask=7; high=4; break;
+    case 4: shift=12; mask=3; high=3; break;
+    case 5: shift=14; mask=3; high=3; break;
+    default: s->picture=PICTURE_DEFAULT; return;
+    }
+    value=(s->picture>>shift)&mask;
+    if(s->index==0) {
+        if(direction>0 && value<high) ++value;
+        if(direction<0 && value>0) --value;
+    } else value=direction>0?(value>=high?0:value+1):(value==0?high:value-1);
+    s->picture=(s->picture & ~(mask<<shift)) | (value<<shift);
+}
 
 static inline uint32_t menu_step(uint32_t v, int direction,
                                uint32_t low, uint32_t high, uint32_t step)
@@ -63,19 +95,30 @@ static inline uint32_t menu_step(uint32_t v, int direction,
 /* One adjustment implementation for touch actions and physical keys. */
 static inline unsigned menu_adjust(MenuState *s, int direction)
 {
+    if(s->picture_page==2) { s->image_step=s->index+2; return 0; }
+    if(s->record_page) {
+        switch(s->index) {
+            case 0:return MENU_PHOTO; case 1:return MENU_RECORD; case 2:return MENU_STOP;
+            case 3:s->record_interval=direction>0?(s->record_interval+1)%5:(s->record_interval+4)%5;return MENU_INTERVAL;
+            case 6:s->record_page=0;s->index=3;s->edit=0;break;
+        }
+        return 0;
+    }
+    if(s->picture_page) { picture_adjust(s,direction); return 0; }
     switch(s->index) {
-    case 0: s->exposure = menu_step(s->exposure, direction, 3, 5990, 120); break;
+    case 0: s->exposure = menu_step(s->exposure, direction, 3, 3990, 120); break;
     case 1: s->gain = menu_step(s->gain, direction, 16, 143, 8); break;
-    /* Servo position is controlled by the live touch surface, not by menu
-     * selection.  Keep these rows inert for physical/menu input. */
-    case 2: case 3: break;
-    case 4: s->image_step = direction > 0 ? (s->image_step >= 5 ? 1 : s->image_step + 1)
-                                        : (s->image_step <= 1 ? 5 : s->image_step - 1); break;
+    /* The former PAN status row opens picture settings. Servo position
+     * remains controlled by relative dragging outside the menu. */
+    case 2: if(s->picture_available) { s->picture_page=1; s->index=0; s->edit=0; } break;
+    case 3: if(s->record_available) {s->record_page=1;s->index=0;s->edit=0;} break;
+    case 4: s->picture_page=2; s->index=s->image_step>=2 && s->image_step<=5?s->image_step-2:0;
+            s->edit=0; break;
     case 5: if(s->image_step == 5) return MENU_REACQUIRE;
             if(s->image_step == 4)
                 s->image_target = direction > 0 ? (s->image_target >= 2 ? 0 : s->image_target + 1)
                                                 : (s->image_target == 0 ? 2 : s->image_target - 1);
-            else if(s->image_step <= 2)
+            else if(s->image_step == 2)
                 s->image_effect = direction > 0 ? (s->image_effect >= 5 ? 0 : s->image_effect + 1)
                                                 : (s->image_effect == 0 ? 5 : s->image_effect - 1);
             break;
@@ -89,6 +132,13 @@ static inline unsigned menu_key(MenuState *s, unsigned keys)
     /* Physical keys cancel a drag so old touch movement cannot overwrite it. */
     s->touch_capture = -1;
     s->servo_touch_active = 0;
+    if(s->menu && s->picture_page==2) {
+        if(keys&4) {s->picture_page=0;s->index=4;}
+        else if(keys&1) s->index=(s->index+3)%4;
+        else if(keys&2) s->index=(s->index+1)%4;
+        else if(keys&8) return menu_adjust(s,1);
+        return 0;
+    }
     if(!s->menu) {
         if(keys & 4) return MENU_AF;
         if(keys & 1) return MENU_FOCUS_UP;
@@ -99,10 +149,18 @@ static inline unsigned menu_key(MenuState *s, unsigned keys)
         else if(keys & 1) return menu_adjust(s, 1);
         else if(keys & 2) return menu_adjust(s, -1);
     } else {
-        if(keys & 4) { s->menu = 0; s->info = 0; }
+        if(keys & 4) {
+            if(s->record_page) {s->record_page=0;s->index=3;}
+            else if(s->picture_page) { s->picture_page=0; s->index=2; }
+            else { s->menu = 0; s->info = 0; }
+        }
         else if(keys & 1) s->index = s->index == 0 ? 6 : s->index - 1;
         else if(keys & 2) s->index = s->index == 6 ? 0 : s->index + 1;
-        else if(keys & 8) { s->edit = 1; s->info = 0; }
+        else if(keys & 8) {
+            if(s->record_page || (!s->picture_page && (s->index>=2 && s->index<=4))) return menu_adjust(s,1);
+            if(s->picture_page && s->index==6) { s->picture=PICTURE_DEFAULT; return 0; }
+            s->edit = 1; s->info = 0;
+        }
     }
     return 0;
 }
@@ -110,7 +168,7 @@ static inline unsigned menu_key(MenuState *s, unsigned keys)
 static inline void menu_slider(MenuState *s, unsigned row, unsigned x)
 {
     unsigned p = x <= 330 ? 0 : x >= 457 ? 127 : x - 330;
-    if(row == 0) s->exposure = 3 + (p * (5990 - 3) + 63) / 127;
+    if(row == 0) s->exposure = 3 + (p * (3990 - 3) + 63) / 127;
     if(row == 1) s->gain = 16 + p;
 }
 
@@ -120,7 +178,7 @@ static inline int touch_in_menu_area(const MenuState *s, const TouchEvent *e)
     /* Match ui_osd.v: lower-left menu panel plus its always-visible button. */
     if(s->menu && x >= 24u && x < 492u && y >= 680u && y < 1004u)
         return 1;
-    if(x >= 24u && x < 220u && y >= 1016u && y < 1080u)
+    if(x < 240u && y >= 1008u && y < 1080u)
         return 1;
     return 0;
 }
@@ -138,47 +196,24 @@ static inline unsigned servo_clamp_delta(int value)
  * returning to the old coarse menu step. */
 static inline unsigned touch_servo_apply(MenuState *s, const TouchEvent *e)
 {
-    int pan, tilt;
-    unsigned dx, dy;
-    if(e->type == TOUCH_CANCEL || e->type == TOUCH_UP) {
-        if(e->type == TOUCH_UP && s->servo_touch_active) {
-            dx = (e->x >= s->servo_touch_x0) ?
-                 (unsigned)e->x - s->servo_touch_x0 : 0u;
-            dy = (e->y >= s->servo_touch_y0) ?
-                 (unsigned)e->y - s->servo_touch_y0 : 0u;
-            pan = (e->x >= s->servo_touch_x0) ?
-                  (int)s->servo_touch_pan0 + (int)dx :
-                  (int)s->servo_touch_pan0 - (int)(s->servo_touch_x0 - e->x);
-            tilt = (e->y >= s->servo_touch_y0) ?
-                   (int)s->servo_touch_tilt0 - (int)dy :
-                   (int)s->servo_touch_tilt0 + (int)(s->servo_touch_y0 - e->y);
-            s->servo_pan_us = servo_clamp_delta((pan / SERVO_TOUCH_STEP_US) * SERVO_TOUCH_STEP_US);
-            s->servo_tilt_us = servo_clamp_delta((tilt / SERVO_TOUCH_STEP_US) * SERVO_TOUCH_STEP_US);
-        }
-        s->servo_touch_active = 0;
-        return 0;
-    }
+    int dx, dy;
+    if(e->type == TOUCH_CANCEL) { s->servo_touch_active=0; return 0; }
     if(e->type == TOUCH_DOWN) {
-        s->servo_touch_active = 0;
-        /* Menu controls have ownership of their rectangle. */
-        if(touch_in_menu_area(s, e)) return 0;
-        s->servo_touch_active = 1;
-        s->servo_touch_x0 = e->x;
-        s->servo_touch_y0 = e->y;
-        s->servo_touch_pan0 = s->servo_pan_us;
-        s->servo_touch_tilt0 = s->servo_tilt_us;
+        s->servo_touch_active = !touch_in_menu_area(s,e);
+        s->servo_touch_x0=e->x; s->servo_touch_y0=e->y;
+        s->servo_touch_pan0=s->servo_pan_us; s->servo_touch_tilt0=s->servo_tilt_us;
         return 0;
     }
-    if(e->type != TOUCH_MOVE || !s->servo_touch_active) return 0;
-
-    pan = (e->x >= s->servo_touch_x0) ?
-          (int)s->servo_touch_pan0 + ((int)e->x - s->servo_touch_x0) :
-          (int)s->servo_touch_pan0 - ((int)s->servo_touch_x0 - e->x);
-    tilt = (e->y >= s->servo_touch_y0) ?
-           (int)s->servo_touch_tilt0 - ((int)e->y - s->servo_touch_y0) :
-           (int)s->servo_touch_tilt0 + ((int)s->servo_touch_y0 - e->y);
-    s->servo_pan_us = servo_clamp_delta((pan / SERVO_TOUCH_STEP_US) * SERVO_TOUCH_STEP_US);
-    s->servo_tilt_us = servo_clamp_delta((tilt / SERVO_TOUCH_STEP_US) * SERVO_TOUCH_STEP_US);
+    if(!s->servo_touch_active) return 0;
+    dx=(int)e->x-s->servo_touch_x0;dy=(int)e->y-s->servo_touch_y0;
+    /* Same deadband as tap recognition: jitter must not move the camera
+     * between the first and second tap. Once dragging, retain ownership. */
+    if(dx>16 || dx< -16 || dy>16 || dy< -16) s->servo_touch_active=2;
+    if(s->servo_touch_active==2) {
+        s->servo_pan_us=servo_clamp_delta(((int)s->servo_touch_pan0+dx)/SERVO_TOUCH_STEP_US*SERVO_TOUCH_STEP_US);
+        s->servo_tilt_us=servo_clamp_delta(((int)s->servo_touch_tilt0-dy)/SERVO_TOUCH_STEP_US*SERVO_TOUCH_STEP_US);
+    }
+    if(e->type==TOUCH_UP) s->servo_touch_active=0;
     return 0;
 }
 
@@ -190,6 +225,7 @@ static inline unsigned menu_touch(MenuState *s, const TouchEvent *e)
         return 0;
     }
     if(e->type == TOUCH_MOVE) {
+        if(s->picture_page || s->record_page) return 0;
         if(s->menu && s->touch_capture >= 0 && s->touch_capture < 2) {
             row = (unsigned)s->touch_capture;
             /* Ignore excursions into other rows; never transfer a drag. */
@@ -208,18 +244,33 @@ static inline unsigned menu_touch(MenuState *s, const TouchEvent *e)
     /* Visible menu gets first hit-test priority over the picture. */
     if(s->menu && x >= 24 && x < 492 && y >= 680 && y < 1004) {
         s->touch_capture = 6;
+        if(s->picture_page==2) {
+            if(y<728) {s->picture_page=0;s->index=4;s->edit=0;return 0;}
+            if(y>=872) return 0;
+            s->index=(y-728)/36;s->edit=0;
+            return menu_adjust(s,1);
+        }
+        if(s->record_page) {
+            if(y<728) {s->record_page=0;s->index=3;s->edit=0;return 0;}
+            if(y>=980) return 0;
+            s->index=(y-728)/36;s->edit=0;
+            return menu_adjust(s,x<330?-1:1);
+        }
+        if(s->picture_page) {
+            if(y<728) { s->picture_page=0; s->index=2; s->edit=0; return 0; }
+            if(y>=980) return 0;
+            s->index=(y-728)/36; s->edit=1;
+            picture_adjust(s,x<330?-1:1);
+            return 0;
+        }
         if(y < 728 || y >= 980) return 0;
         row = (y - 728) / 36;
         s->index = row; s->edit = 1; s->info = 0;
         if(row < 2 && x >= 306) {
             s->touch_capture = (int)row;
             menu_slider(s, row, x);
-        } else if(row >= 4) return menu_adjust(s, 1);
+        } else if(row >= 2) return menu_adjust(s, 1);
         return 0;
-    }
-    if(x >= 760 && x < 1160 && y >= 390 && y < 690) {
-        s->touch_capture = 5;
-        return MENU_AF;
     }
     return 0;
 }

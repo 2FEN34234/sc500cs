@@ -3,7 +3,7 @@
 **	All Right Reserved.
 \************************************************************/
 /************************************************************\
-**	Build time: Sep 21 2026 21:38:50
+**	Build time: Oct 14 2026 17:27:31
 **	TD version	:	6.2.168116
 ************************************************************/
 `timescale 1ps/1ps 
@@ -38,6 +38,8 @@ module RISCV_F6F1D1P0_0
   input                         gpio7_in,
   output                        gpio7_out,
   output                        gpio7_dir,
+  output                        uart0_tx,
+  input                         uart0_rx,
   output                        uart1_tx,
   input                         uart1_rx,
   input                         i2c_sda_in,
@@ -91,7 +93,7 @@ module RISCV_F6F1D1P0_0
 
   MCU_521bd43d073e
   #(
-      // Use the PAD JTAG selection; the design top does not route PIB JTAG.
+      // Board baseline verified with rtc_serial_set_20261013. See build preflight.
       .MCU_JTAG_SEL("0"),
       .MCU_RESET_VECTOR('h20e00000),
       .AHB_FREQ("150.0"),
@@ -129,6 +131,8 @@ module RISCV_F6F1D1P0_0
       .gpio7_in(gpio7_in),
       .gpio7_out(gpio7_out),
       .gpio7_dir(gpio7_dir),
+      .uart0_tx(uart0_tx),
+      .uart0_rx(uart0_rx),
       .uart1_tx(uart1_tx),
       .uart1_rx(uart1_rx),
       .i2c_sda_in(i2c_sda_in),

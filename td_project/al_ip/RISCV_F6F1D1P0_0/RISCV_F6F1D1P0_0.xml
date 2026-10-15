@@ -237,6 +237,20 @@
                 </ipxact:wire>
             </ipxact:port>
             <ipxact:port>
+                <ipxact:name>uart0_tx</ipxact:name>
+                <ipxact:displayName>uart0_tx</ipxact:displayName>
+                <ipxact:wire>
+                    <ipxact:direction>out</ipxact:direction>
+                </ipxact:wire>
+            </ipxact:port>
+            <ipxact:port>
+                <ipxact:name>uart0_rx</ipxact:name>
+                <ipxact:displayName>uart0_rx</ipxact:displayName>
+                <ipxact:wire>
+                    <ipxact:direction>in</ipxact:direction>
+                </ipxact:wire>
+            </ipxact:port>
+            <ipxact:port>
                 <ipxact:name>uart1_tx</ipxact:name>
                 <ipxact:displayName>uart1_tx</ipxact:displayName>
                 <ipxact:wire>

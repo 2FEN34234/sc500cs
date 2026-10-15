@@ -22,5 +22,12 @@ int main(void) {
     s.record_page=0;s.picture_page=0;s.index=0;s.edit=1;s.menu=1;
     s.exposure=3980;menu_key(&s,1);assert(s.exposure==3990);
     s.exposure=3;menu_key(&s,2);assert(s.exposure==3);
+    unsigned previous=0;
+    for(unsigned x=0;x<1920;x++) {
+        menu_slider(&s,0,x);
+        assert(s.exposure>=3 && s.exposure<=3990 && s.exposure>=previous);
+        previous=s.exposure;
+    }
+    assert(s.exposure==3990);
     puts("PASS recorder menu keys, touch, interval, return, servo ownership, no single-tap AF");
 }

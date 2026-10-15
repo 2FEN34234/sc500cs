@@ -1,0 +1,56 @@
+Camera 30 fps profile / 2026-10-15
+
+Problem and evidence
+  Previous sensor table wrote VTS=0x0bb8=3000; ae_set documented ~20 fps.
+  HDMI uses 75 MHz / (2200*1125) = 30.303 Hz. Its OSD counter counts output
+  refreshes, not distinct camera frames. video_out selects the published DDR
+  read pointer every output VSYNC, even if no new camera frame is available.
+  Thus 20 fps input cannot supply a distinct image on every ~30 Hz refresh.
+  Existing S_dbg_frame_repeat_seen means that a second camera frame arrived;
+  it is NOT a repeated-content counter and must not be interpreted as one.
+
+Change
+  Sensor 0x320e/0x320f: 0x07/0xd0 (VTS=2000), nominal full-mode 30 fps.
+  Full 2592x1944 capture, HTS, PLL, scaler/crop and HDMI timing unchanged.
+  Exposure default/max 3990 half-lines (~33.25 ms), minimum 3.
+  Source: local SC500CS V1.8 manual pp.15 (full mode 30 fps), 21 (VTS),
+  23 (half-line exposure units and maximum 2*VTS-10).
+  AE, APB defaults/clamps, both MCU startups, buttons, touch slider,
+  OSD bar, MCU Wi-Fi validation, local server validation/UI now agree.
+  Gain default 80 and image processing parameters unchanged.
+  OSD bar remains shift/add; no new frame buffers, counters or image modules.
+  Prior working MCU IP/JTAG baseline and double-tap local AF are retained.
+
+Validation
+  tb_camera30: fixed full-frame geometry and HTS, VTS=2000, all 65536 AE inputs.
+  tb_max3421e_apb: reset exposure 3990; 3991/5990 clamp; minimum and normal writes.
+  test_record_menu: key limits and monotonic full touch-slider sweep.
+  tb_camera30_osd: exposures 0..6000 produce a monotonic bounded bar; 3990 is full.
+  test_wifi_mcu: reject 3991 before changing exposure.
+  Test-WifiBridge.ps1: existing menu/AF, UART, replay, RTC, SD regression suite.
+  Server unittest suite: 17 tests passed, including new maximum 3990.
+  Both MCU targets compiled, RAM text/data/bss=40064/152/8480 bytes;
+  Flash text/data/bss=35472/152/8480 bytes (unchanged sizes).
+  FPGA build command: TD_6.2.1_Engineer_6.2.168.116/bin/td_commands_prompt.exe
+                     tests/build_camera30.tcl
+  Build completed 2026-10-15 20:35 (local client timezone).
+  Final setup WNS +0.108 ns, hold WNS +0.020 ns, both TNS=0.
+  STA coverage 94.98%, with existing constraints; hardware verification remains required.
+  Final Slice 19676/21216 (92.74%), ERAM 69/108, DSP 14/40.
+  Build results and final timing reports: build/camera30_20261015/.
+
+Hardware validation still required
+  Download paired camera30 bit and the MCU ELF appropriate to RAM or Flash.
+  FPGA reconfiguration is required: MCU alone cannot change this sensor VTS table.
+  Camera must restart through sensor initialization to apply VTS.
+  Check picture, menu range, motion smoothness and double-tap AF in good light.
+  At the same gain, maximum exposure is about 2/3 of the previous setting;
+  dark scenes can be dimmer. No automatic gain boost was added.
+  Verify camera input frame-start period (~33.3 ms) with instrumentation;
+  HDMI OSD alone cannot measure unique frame delivery or DDR drops/repeats.
+  HDMI remains ~30.303 Hz and camera nominal 30 fps with independent timing:
+  occasional repeats can remain. This profile does not promise zero repeats,
+  measured 30 fps, or a new DDR frame scheduling algorithm.
+  No hardware flashing or server deployment was performed by the agent.
+
+Wi-Fi compatibility note: wifi/CAMERA30_INTERFACE_20261015.txt.
